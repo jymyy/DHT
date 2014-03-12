@@ -81,14 +81,15 @@ int main(void) {
     fd_set rfds;
 	int servsock;
     int listensock = create_listen_socket();
-	void *sendbuf = malloc(MAX_PACKET_SIZE);   // packets to be sent
-	void *rcvbuf = malloc(MAX_PACKET_SIZE);    // packets received
-	void *plbuf = malloc(MAX_PACKET_SIZE);     // payload
+	unsigned char *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
+	unsigned char *rcvbuf = malloc(MAX_PACKET_SIZE);    // packet received
+	unsigned char *plbuf = malloc(MAX_PACKET_SIZE);     // payload
 	int packetlen;
-	struct addrinfo servhints, hosthints, *servinfo, *hostinfo;
-	memset(&servhints, 0, sizeof(servhints));
-	memset(&hosthints, 0, sizeof(hosthints));
 
+    // Structs for connection info
+	struct addrinfo servhints, hosthints, *servinfo, *hostinfo;
+	memset(&servhints, 0, sizeof(struct addrinfo));
+	memset(&hosthints, 0, sizeof(struct addrinfo));
 	servhints.ai_family = AF_UNSPEC;
 	servhints.ai_socktype = SOCK_STREAM;
 	hosthints.ai_family = AF_UNSPEC;
@@ -119,8 +120,16 @@ int main(void) {
 	sendall(servsock, sendbuf, packetlen, 0);
 
     while(running) {
+        // Add appropriate sockets to listening pool
 		FD_ZERO(&rfds);
-		FD_SET(listensock, &rfds);     
+		FD_SET(listensock, &rfds);
+        FD_SET(servsock, &rfds);
+        if (left != -1) {
+             FD_SET(left, &rfds)
+         } 
+         if (right != -1) {
+             FD_SET(left, &rfds)
+         }
 
 		status = select(listensock + 1, &rfds, NULL, NULL, NULL);
 
@@ -214,7 +223,7 @@ int main(void) {
                             read_packet(plbuf, recvbuf, header->pl_len);
                             struct tcp_addr *nb_addr = build_tcp_addr(plbuf);
                             struct addrinfo nb_hints, *nb_info;
-                            memset(&nb_hints, 0, sizeof(nb_hints));
+                            memset(&nb_hints, 0, sizeof(struct addrinfo));
                             nb_hints.ai_family = AF_UNSPEC;
                             nb_hints.ai_socktype = SOCK_STREAM;
                             if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
@@ -234,7 +243,7 @@ int main(void) {
                             read_packet(plbuf, recvbuf, header->pl_len);
                             struct tcp_addr *nb_addr = build_tcp_addr(plbuf);
                             struct addrinfo nb_hints, *nb_info;
-                            memset(&nb_hints, 0, sizeof(nb_hints));
+                            memset(&nb_hints, 0, sizeof(struct addrinfo));
                             nb_hints.ai_family = AF_UNSPEC;
                             nb_hints.ai_socktype = SOCK_STREAM;
                             if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
