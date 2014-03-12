@@ -29,6 +29,8 @@
 #define SERVER_ADDR "example.com"
 #define SERVER_PORT 1234
 
+typedef char[21] sha1_t;
+
 struct tcp_addr {
     uint16_t port;
 	char *addr;
@@ -65,68 +67,80 @@ int create_listen_socket() {
 }
 
 int main(void) {
-    fd_set rfds;
-    int retval;
+    // Program state
+    int status = 0;
     int running = 1;
-	int left = 0;
-	int right = 0;
-    int listensock = create_listen_socket();
+    
+    // Connection state
+    int ACKS_RECEIVED = 0;
+    int left = -1;  // left neighbour socket
+    int right = -1; // right neighbour socket
+    sha1_t nb_hashes[2];
+    sha1_t this = hash(self);
 
+    fd_set rfds;
 	int servsock;
-	void *sendbuf = malloc(MAX_PACKET_SIZE);
-	void *rcvbuf = malloc(MAX_PACKET_SIZE);
-	void *plbuf = malloc(MAX_PACKET_SIZE);
+    int listensock = create_listen_socket();
+	void *sendbuf = malloc(MAX_PACKET_SIZE);   // packets to be sent
+	void *rcvbuf = malloc(MAX_PACKET_SIZE);    // packets received
+	void *plbuf = malloc(MAX_PACKET_SIZE);     // payload
 	int packetlen;
 	struct addrinfo servhints, hosthints, *servinfo, *hostinfo;
 	memset(&servhints, 0, sizeof(servhints));
 	memset(&hosthints, 0, sizeof(hosthints));
+
 	servhints.ai_family = AF_UNSPEC;
 	servhints.ai_socktype = SOCK_STREAM;
 	hosthints.ai_family = AF_UNSPEC;
 	hosthints.ai_socktype = SOCK_STREAM;
 	hosthints.ai_flags = AI_PASSIVE;
 
-	// char hostname[HOSTNAME_LEN];
-	// gethostname(hostname, HOSTNAME_LEN);
-	getaddrinfo(NULL, HOST_PORT, &hosthints, &hostinfo);
-    
-	getaddrinfo(SERVER_ADDR, SERVER_PORT, &servhints, &servinfo);
+	if ((status = getaddrinfo(NULL, HOST_PORT, &hosthints, &hostinfo)) != 0) {
+        die(gai_strerror(status));
+    }
+
+    if ((status = getaddrinfo(SERVER_ADDR, SERVER_PORT, &servhints, &servinfo)) != 0) {
+        die(gai_strerror(status));
+    }
+	
 	listensock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
-	connect(servsock, servinfo->ai_addr, servinfo->ai_addrlen);
-	sendall(servsock, DHT_CLIENT_SHAKE, 2, 0);	// Handshake
+	if (connect(servsock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
+        die(strerror(errno));
+    }
+
+    // Handshake with server
+	sendall(servsock, DHT_CLIENT_SHAKE, 2, 0);
 	rcvall(servsock, rcvbuf, MAX_PACKET_SIZE, 0);
 
+    // Send DHT_REGISTER_BEGIN to server
 	struct tcp_addr host_addr = {hostinfo->ai_addr, HOST_PORT};
 	packetlen = create_packet(&sendbuf, MAX_PACKET_SIZE, servinfo->ai_addr, SERVER_PORT, hostinfo->ai_addr, HOST_PORT,
 	DHT_REGISTER_BEGIN, &host_addr, sizeof(uint16_t) + strlen(host_addr.addr));
-	sendall(servsock, sendbuf, packetlen, 0);	// DHT_REGISTER_BEGIN
-
-    // Connection flags
-    int ACKS_RECEIVED = 0;
-    int left = -1;
-    int right = -1;
-    sha1_t nb_hashes[2];
+	sendall(servsock, sendbuf, packetlen, 0);
 
     while(running) {
 		FD_ZERO(&rfds);
 		FD_SET(listensock, &rfds);     
 
-		retval = select(listensock + 1, &rfds, NULL, NULL, NULL);
+		status = select(listensock + 1, &rfds, NULL, NULL, NULL);
 
-		if (retval == -1) {
+		if (status == -1) {
 			die("select failed");
-		} else if (retval) {
+		} else if (status) {
 			if (FD_ISSET(listensock, &rfds)) {
 				struct sockaddr_in tempaddr;
+                int tempfd
 				unsigned int addrlen = 0;
-                int tempfd = accept(listensock, (struct sockaddr *)&tempaddr,
-                            &addrlen);
-                if (left == -1) {
+                
+                if ((tempfd = accept(listensock, (struct sockaddr *)&tempaddr,
+                            &addrlen) == -1) {
+                    die(strerror(errno));
+                } else if (left == -1) {
                     left = tempfd;
                 } else if (left != -1 && right == -1) {
                     right = tempfd;
                 } else {
-                    // ERROR
+                    die("error accepting new connection")
                 }
                 FD_SET(tempfd, &rfds);
 				recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
@@ -136,9 +150,9 @@ int main(void) {
                         sendall(tempfd, DHT_SERVER_SHAKE, 2, 0);
                         break;
                     default:
-                        // ERROR
+                        die("invalid handshake");
                 }
-				
+
 			} else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
                 int tempfd;
                 if (FD_ISSET(left, &rfds)) {
@@ -150,10 +164,12 @@ int main(void) {
                 struct header *header = read_header(recvbuf);
                 switch (header->type) {
                     case DHT_TRANSFER_DATA:
+                        // TODO: Implement hash ring
                         read_packet(plbuf, recvbuf, header->pl_len);
-                        insert_data(plbuf, pl_len); // TODO Implement linked list
+                        insert_data(plbuf, pl_len);
                         break;
-                    case DHT_REGISTER_ACK:    // Received data from neighbour (connecting)
+                    case DHT_REGISTER_ACK:
+                        // Received data from neighbour (connecting)
                         nb_hashes[ACKS_RECEIVED] = header->sender;
                         ACKS_RECEIVED++;
 
@@ -161,33 +177,36 @@ int main(void) {
                             packetlen = create_packet(&sendbuf, MAX_PACKET_SIZE, servinfo->ai_addr, SERVER_PORT, hostinfo->ai_addr, HOST_PORT,
                             DHT_REGISTER_DONE, &host_addr, sizeof(uint16_t) + strlen(host_addr.addr));
                             sendall(servsock, sendbuf, packetlen, 0);
+                            reorder(this, left, nb_hashes[0], right, nb_hashes[1]);
                             
-                            if () {
-                                // Decide who is who
-                            }
                         }
                         break; 
-                    case DHT_REGISTER_DONE:   // Forget data sent to new neighbour
+                    case DHT_REGISTER_DONE:
+                        // Forget data sent to new neighbour
                         break;   
                     default:
-                        // ERROR
+                        die("invalid header");
                 }
 
             } else if (FD_ISSET(servsock, &rfds)) {
                 recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
                 struct header *header = read_header(recvbuf);
                 switch (header->type) {
-                    case DHT_REGISTER_FAKE_ACK:   // First node in network (connecting)
+                    case DHT_REGISTER_FAKE_ACK:
+                        // First node in network (connecting)
                         break;
                     case DHT_REGISTER_BEGIN:
                         int sendleft = 0;
                         int sendright = 0;
-                        if (left == -1 && right == -1) { // If we are currently the only node
+                        if (left == -1 && right == -1) {
+                            // If we are currently the only node
                             sendleft = 1;
                             sendright = 1;
-                        } else if (target == left_side) { // If new neighbour is to the left
+                        } else if (target == left_side) {
+                            // If new neighbour is to the left
                             sendleft = 1;
-                        } else if (target == right_side) { // If new neighbour is to the left
+                        } else if (target == right_side) {
+                            // If new neighbour is to the left
                             sendright = 1;
                         }
 
@@ -198,9 +217,15 @@ int main(void) {
                             memset(&nb_hints, 0, sizeof(nb_hints));
                             nb_hints.ai_family = AF_UNSPEC;
                             nb_hints.ai_socktype = SOCK_STREAM;
-                            getaddrinfo(NULL, NULL, &nb_hints, &nb_info);
-                            left = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol);
-                            connect(left, nb_info->ai_addr, nb_info->ai_addrlen);
+                            if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
+                                die(gai_strerror(status));
+                            
+                            if ((left = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
+                                die(strerror(errno));
+                            }
+                            if ((status = connect(left, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
+                                die(strerror(errno));
+                            }
                             
 
                         }
@@ -212,15 +237,22 @@ int main(void) {
                             memset(&nb_hints, 0, sizeof(nb_hints));
                             nb_hints.ai_family = AF_UNSPEC;
                             nb_hints.ai_socktype = SOCK_STREAM;
-                            getaddrinfo(NULL, NULL, &nb_hints, &nb_info);
-                            right = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol);
-                            connect(right, nb_info->ai_addr, nb_info->ai_addrlen);
+                            if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
+                                die(gai_strerror(status));
+                            
+                            if ((right = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
+                                die(strerror(errno));
+                            }
+                            if ((status = connect(right, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
+                                die(strerror(errno));
+                            }
                         }
                         break;
-                    case DHT_REGISTER_DONE:   // Forget data sent to new neighbour
+                    case DHT_REGISTER_DONE:
+                        // Forget data sent to new neighbour
                         break;   
                     default:
-                        // ERROR
+                        die("invalid header");
                 }
             }
 		}
