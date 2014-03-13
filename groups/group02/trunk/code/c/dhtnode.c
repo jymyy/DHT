@@ -29,7 +29,7 @@
 #define SERVER_ADDR "example.com"
 #define SERVER_PORT 1234
 
-typedef char[21] sha1_t;
+typedef unsigned char[21] sha1_t;
 
 struct tcp_addr {
     uint16_t port;
@@ -75,6 +75,7 @@ int main(void) {
     int ACKS_RECEIVED = 0;
     int left = -1;  // left neighbour socket
     int right = -1; // right neighbour socket
+    int third = -1; // third, connecting node
     sha1_t nb_hashes[2];
     sha1_t this = hash(self);
 
@@ -83,7 +84,6 @@ int main(void) {
     int listensock = create_listen_socket();
 	unsigned char *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
 	unsigned char *rcvbuf = malloc(MAX_PACKET_SIZE);    // packet received
-	unsigned char *plbuf = malloc(MAX_PACKET_SIZE);     // payload
 	int packetlen;
 
     // Structs for connection info
@@ -115,7 +115,7 @@ int main(void) {
 
     // Send DHT_REGISTER_BEGIN to server
 	struct tcp_addr host_addr = {hostinfo->ai_addr, HOST_PORT};
-	packetlen = create_packet(&sendbuf, MAX_PACKET_SIZE, servinfo->ai_addr, SERVER_PORT, hostinfo->ai_addr, HOST_PORT,
+	packetlen = pack(&sendbuf, MAX_PACKET_SIZE, servinfo->ai_addr, SERVER_PORT, hostinfo->ai_addr, HOST_PORT,
 	DHT_REGISTER_BEGIN, &host_addr, sizeof(uint16_t) + strlen(host_addr.addr));
 	sendall(servsock, sendbuf, packetlen, 0);
 
@@ -125,11 +125,18 @@ int main(void) {
 		FD_SET(listensock, &rfds);
         FD_SET(servsock, &rfds);
         if (left != -1) {
-             FD_SET(left, &rfds)
-         } 
-         if (right != -1) {
-             FD_SET(left, &rfds)
-         }
+             FD_SET(left, &rfds);
+        } 
+        if (right != -1) {
+             FD_SET(left, &rfds);
+        }
+        if (third != -1) {
+            FD_SET(third, &rfds);
+        }
+
+        // Reset buffers
+        memset(&sendbuf, 0, MAX_PACKET_SIZE);
+        memset(&rcvbuf, 0, MAX_PACKET_SIZE);
 
 		status = select(listensock + 1, &rfds, NULL, NULL, NULL);
 
@@ -138,23 +145,23 @@ int main(void) {
 		} else if (status) {
 			if (FD_ISSET(listensock, &rfds)) {
 				struct sockaddr_in tempaddr;
-                int tempfd
+                int tempfd;
 				unsigned int addrlen = 0;
                 
                 if ((tempfd = accept(listensock, (struct sockaddr *)&tempaddr,
-                            &addrlen) == -1) {
+                            &addrlen)) == -1) {
                     die(strerror(errno));
                 } else if (left == -1) {
                     left = tempfd;
                 } else if (left != -1 && right == -1) {
                     right = tempfd;
                 } else {
-                    die("error accepting new connection")
+                    die("error accepting new connection");
                 }
                 FD_SET(tempfd, &rfds);
-				recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
-				struct header *header = read_header(recvbuf);
-                switch (header->type) {
+				recvall(tempfd, rcvbuf, MAX_PACKET_SIZE, 0);
+				struct packet *packet = unpack(rcvbuf);
+                switch (packet->type) {
                     case DHT_CLIENT_SHAKE:
                         sendall(tempfd, DHT_SERVER_SHAKE, 2, 0);
                         break;
@@ -169,25 +176,23 @@ int main(void) {
                 } else {
                     tempfd = right;
                 }
-                recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
-                struct header *header = read_header(recvbuf);
-                switch (header->type) {
+                recvall(tempfd, rcvbuf, MAX_PACKET_SIZE, 0);
+                struct packet *packet = unpack(rcvbuf);
+                switch (packet->type) {
                     case DHT_TRANSFER_DATA:
                         // TODO: Implement hash ring
-                        read_packet(plbuf, recvbuf, header->pl_len);
-                        insert_data(plbuf, pl_len);
+                        insert_data(ring, packet->payload, packet->pl_len);
                         break;
                     case DHT_REGISTER_ACK:
                         // Received data from neighbour (connecting)
-                        nb_hashes[ACKS_RECEIVED] = header->sender;
+                        nb_hashes[ACKS_RECEIVED] = packet->sender;
                         ACKS_RECEIVED++;
 
                         if (ACKS_RECEIVED == 2) {
-                            packetlen = create_packet(&sendbuf, MAX_PACKET_SIZE, servinfo->ai_addr, SERVER_PORT, hostinfo->ai_addr, HOST_PORT,
+                            packetlen = pack(&sendbuf, MAX_PACKET_SIZE, servinfo->ai_addr, SERVER_PORT, hostinfo->ai_addr, HOST_PORT,
                             DHT_REGISTER_DONE, &host_addr, sizeof(uint16_t) + strlen(host_addr.addr));
                             sendall(servsock, sendbuf, packetlen, 0);
-                            reorder(this, left, nb_hashes[0], right, nb_hashes[1]);
-                            
+                            reorder(this, left, nb_hashes[0], right, nb_hashes[1], NULL, "sha1");
                         }
                         break; 
                     case DHT_REGISTER_DONE:
@@ -198,67 +203,50 @@ int main(void) {
                 }
 
             } else if (FD_ISSET(servsock, &rfds)) {
-                recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
-                struct header *header = read_header(recvbuf);
-                switch (header->type) {
+                recvall(servsock, rcvbuf, MAX_PACKET_SIZE, 0);
+                struct packet *packet = unpack(rcvbuf);
+                switch (packet->type) {
                     case DHT_REGISTER_FAKE_ACK:
                         // First node in network (connecting)
                         break;
                     case DHT_REGISTER_BEGIN:
-                        int sendleft = 0;
-                        int sendright = 0;
+                        
+                        struct tcp_addr *nb_addr = build_tcp_addr(packet->pl_len, packet->payload);
+                        struct addrinfo nb_hints, *nb_info;
+                        memset(&nb_hints, 0, sizeof(struct addrinfo));
+                        nb_hints.ai_family = AF_UNSPEC;
+                        nb_hints.ai_socktype = SOCK_STREAM;
+                        if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
+                            die(gai_strerror(status));
+                        }
+                        if ((third = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
+                            die(strerror(errno));
+                        }
+                        if ((status = connect(third, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
+                            die(strerror(errno));
+                        }
+
                         if (left == -1 && right == -1) {
-                            // If we are currently the only node
-                            sendleft = 1;
-                            sendright = 1;
-                        } else if (target == left_side) {
-                            // If new neighbour is to the left
-                            sendleft = 1;
-                        } else if (target == right_side) {
-                            // If new neighbour is to the left
-                            sendright = 1;
-                        }
-
-                        if (sendleft) {
-                            read_packet(plbuf, recvbuf, header->pl_len);
-                            struct tcp_addr *nb_addr = build_tcp_addr(plbuf);
-                            struct addrinfo nb_hints, *nb_info;
-                            memset(&nb_hints, 0, sizeof(struct addrinfo));
-                            nb_hints.ai_family = AF_UNSPEC;
-                            nb_hints.ai_socktype = SOCK_STREAM;
+                            left = third;
                             if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
-                                die(gai_strerror(status));
-                            
-                            if ((left = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
-                                die(strerror(errno));
+                            die(gai_strerror(status));
                             }
-                            if ((status = connect(left, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
-                                die(strerror(errno));
-                            }
-                            
-
-                        }
-
-                        if (sendright) {
-                            read_packet(plbuf, recvbuf, header->pl_len);
-                            struct tcp_addr *nb_addr = build_tcp_addr(plbuf);
-                            struct addrinfo nb_hints, *nb_info;
-                            memset(&nb_hints, 0, sizeof(struct addrinfo));
-                            nb_hints.ai_family = AF_UNSPEC;
-                            nb_hints.ai_socktype = SOCK_STREAM;
-                            if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
-                                die(gai_strerror(status));
-                            
                             if ((right = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
                                 die(strerror(errno));
                             }
                             if ((status = connect(right, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
                                 die(strerror(errno));
                             }
+                        } else {
+                            reorder(left, left_key, right, right_key, third, packet->target);
+                            // Third can be closed only if there is no ongoing data transfer.
+                            
                         }
                         break;
                     case DHT_REGISTER_DONE:
                         // Forget data sent to new neighbour
+                        shutdown(third, 2);
+                        third = -1;
                         break;   
                     default:
                         die("invalid header");
@@ -268,6 +256,7 @@ int main(void) {
     }
 
     close(listensock);
+    close(servsock);
 
     return 0;
 }
