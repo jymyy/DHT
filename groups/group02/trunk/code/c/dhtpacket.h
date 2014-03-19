@@ -17,9 +17,9 @@ struct packet {
     void *payload; 
 };
 
-int pack(void **buf, int buflen, char *target_addr, uint16_t target_port, char *sender_addr, uint16_t sender_port, uint16_t type, void *payload, uint16_t payload_len);
+int pack(void **buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t type, void *payload, uint16_t payload_len);
 
-int unpack(void **buf, void *packet, uint16_t pl_len);
+struct packet* unpack(void **buf, uint16_t packet_len);
 
 struct tcp_addr* build_tcp_addr(void *payload);
 

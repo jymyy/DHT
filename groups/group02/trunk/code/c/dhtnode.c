@@ -23,7 +23,7 @@
 #include <netdb.h>
 
 #define HOST_PORT 9876
-#define MAX_CONNECTIONS 5
+#define MAX_CONNECTIONS 2
 #define MAX_PACKET_SIZE 1024
 #define HOSTNAME_LEN 64
 #define SERVER_ADDR "example.com"
@@ -76,14 +76,14 @@ int main(void) {
     int left = -1;  // left neighbour socket
     int right = -1; // right neighbour socket
     int third = -1; // third, connecting node
-    sha1_t nb_hashes[2];
+    int lonely = 0;
     sha1_t this = hash(self);
 
     fd_set rfds;
 	int servsock;
     int listensock = create_listen_socket();
 	unsigned char *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
-	unsigned char *rcvbuf = malloc(MAX_PACKET_SIZE);    // packet received
+	unsigned char *recvbuf = malloc(MAX_PACKET_SIZE);    // packet received
 	int packetlen;
 
     // Structs for connection info
@@ -111,7 +111,7 @@ int main(void) {
 
     // Handshake with server
 	sendall(servsock, DHT_CLIENT_SHAKE, 2, 0);
-	rcvall(servsock, rcvbuf, MAX_PACKET_SIZE, 0);
+	rcvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
 
     // Send DHT_REGISTER_BEGIN to server
 	struct tcp_addr host_addr = {hostinfo->ai_addr, HOST_PORT};
@@ -136,14 +136,31 @@ int main(void) {
 
         // Reset buffers
         memset(&sendbuf, 0, MAX_PACKET_SIZE);
-        memset(&rcvbuf, 0, MAX_PACKET_SIZE);
+        memset(&recvbuf, 0, MAX_PACKET_SIZE);
 
 		status = select(listensock + 1, &rfds, NULL, NULL, NULL);
 
 		if (status == -1) {
 			die("select failed");
 		} else if (status) {
-			if (FD_ISSET(listensock, &rfds)) {
+            if (FD_ISSET(stdin, &rfds)) { // cmdsock
+                /*
+                cmd = read_cmd_from_cmdsock()
+                switch (cmd) {
+                    case PUT_DATA:
+                        break;
+                    case GET_DATA:
+                        break;
+                    case TERMINATE:
+                        packetlen = pack(&sendbuf, MAX_PACKET_SIZE, target_key, sender_key,
+                        DHT_DEREGISTER_BEGIN, NULL, 0);
+                        sendall(servsock, sendbuf, packetlen, 0);
+                        break;
+                    default:
+                        die();
+                }
+                */
+            } else if (FD_ISSET(listensock, &rfds)) {
 				struct sockaddr_in tempaddr;
                 int tempfd;
 				unsigned int addrlen = 0;
@@ -159,8 +176,8 @@ int main(void) {
                     die("error accepting new connection");
                 }
                 FD_SET(tempfd, &rfds);
-				recvall(tempfd, rcvbuf, MAX_PACKET_SIZE, 0);
-				struct packet *packet = unpack(rcvbuf);
+				recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
+				struct packet *packet = unpack(recvbuf);
                 switch (packet->type) {
                     case DHT_CLIENT_SHAKE:
                         sendall(tempfd, DHT_SERVER_SHAKE, 2, 0);
@@ -170,89 +187,128 @@ int main(void) {
                 }
 
 			} else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
-                int tempfd;
+                int *tempfd;
                 if (FD_ISSET(left, &rfds)) {
-                    tempfd = left;
+                    *tempfd = left;
+                } else if (FD_ISSET(right, &rfds)) {
+                    *tempfd = right;
                 } else {
-                    tempfd = right;
+                    die();
                 }
-                recvall(tempfd, rcvbuf, MAX_PACKET_SIZE, 0);
-                struct packet *packet = unpack(rcvbuf);
+                recvall(*tempfd, recvbuf, MAX_PACKET_SIZE, 0);
+                struct packet *packet = unpack(recvbuf);
                 switch (packet->type) {
                     case DHT_TRANSFER_DATA:
                         // TODO: Implement hash ring
-                        insert_data(ring, packet->payload, packet->pl_len);
+                        // insert_data(ring, packet->payload, packet->pl_len);
                         break;
                     case DHT_REGISTER_ACK:
                         // Received data from neighbour (connecting)
-                        nb_hashes[ACKS_RECEIVED] = packet->sender;
                         ACKS_RECEIVED++;
+                        shutdown(*tempfd, 2);
+                        *tempfd = -1;
 
                         if (ACKS_RECEIVED == 2) {
-                            packetlen = pack(&sendbuf, MAX_PACKET_SIZE, servinfo->ai_addr, SERVER_PORT, hostinfo->ai_addr, HOST_PORT,
+                            packetlen = pack(&sendbuf, MAX_PACKET_SIZE, target_key, sender_key,
                             DHT_REGISTER_DONE, &host_addr, sizeof(uint16_t) + strlen(host_addr.addr));
                             sendall(servsock, sendbuf, packetlen, 0);
-                            reorder(this, left, nb_hashes[0], right, nb_hashes[1], NULL, "sha1");
                         }
-                        break; 
-                    case DHT_REGISTER_DONE:
-                        // Forget data sent to new neighbour
-                        break;   
+                        break;
+                    case DHT_DEREGISTER_ACK:
+                        // Received all data from leaving neighbour
+                        shutdown(*tempfd, 2);
+                        packetlen = pack(&sendbuf, MAX_PACKET_SIZE, packet->sender, sender_key,
+                        DHT_DEREGISTER_DONE, NULL, 0);
+                        sendall(servsock, sendbuf, packetlen, 0);
+                        *tempfd = -1;
+                        break;
                     default:
                         die("invalid header");
                 }
 
             } else if (FD_ISSET(servsock, &rfds)) {
-                recvall(servsock, rcvbuf, MAX_PACKET_SIZE, 0);
-                struct packet *packet = unpack(rcvbuf);
+                recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
+                struct packet *packet = unpack(recvbuf);
                 switch (packet->type) {
                     case DHT_REGISTER_FAKE_ACK:
-                        // First node in network (connecting)
+                        // First node in network (connecting), do nothing
+                        lonely = 1;
                         break;
                     case DHT_REGISTER_BEGIN:
-                        
                         struct tcp_addr *nb_addr = build_tcp_addr(packet->pl_len, packet->payload);
                         struct addrinfo nb_hints, *nb_info;
+                        int tempfd;
                         memset(&nb_hints, 0, sizeof(struct addrinfo));
                         nb_hints.ai_family = AF_UNSPEC;
                         nb_hints.ai_socktype = SOCK_STREAM;
                         if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
                             die(gai_strerror(status));
                         }
-                        if ((third = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
+                        if ((tempfd = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
                             die(strerror(errno));
                         }
-                        if ((status = connect(third, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
+                        if ((status = connect(tempfd, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
                             die(strerror(errno));
                         }
 
-                        if (left == -1 && right == -1) {
-                            left = third;
+                        // TODO Send data
+                        packetlen = pack(&sendbuf, MAX_PACKET_SIZE, target_key, sender_key,
+                        DHT_REGISTER_ACK, NULL, 0);
+                        sendall(servsock, sendbuf, packetlen, 0);
+                        close(tempfd);
+
+                        if (lonely) {
+                            lonely = 0;
                             if ((status = getaddrinfo(NULL, NULL, &nb_hints, &nb_info)) != 0) {
                             die(gai_strerror(status));
                             }
-                            if ((right = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
+                            if ((tempfd = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
                                 die(strerror(errno));
                             }
-                            if ((status = connect(right, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
+                            if ((status = connect(tempfd, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
                                 die(strerror(errno));
                             }
-                        } else {
-                            reorder(left, left_key, right, right_key, third, packet->target);
-                            // Third can be closed only if there is no ongoing data transfer.
-                            
+
+                            packetlen = pack(&sendbuf, MAX_PACKET_SIZE, target_key, sender_key,
+                            DHT_REGISTER_ACK, NULL, 0);
+                            sendall(servsock, sendbuf, packetlen, 0);
+                            close(tempfd);
                         }
                         break;
                     case DHT_REGISTER_DONE:
                         // Forget data sent to new neighbour
-                        shutdown(third, 2);
-                        third = -1;
-                        break;   
+                        break;
+                    case DHT_DEREGISTER_ACK:
+                        // TODO Read neighbour addresses from payload
+                        running = 0;
+                        break;
+                    case DHT_DEREGISTER_DENY:
+                        // TODO Inform user
+                        break;
                     default:
                         die("invalid header");
                 }
             }
 		}
+    }
+
+    
+    while () {
+        FD_ZERO(&rfds);
+        FD_SET(left, &rfds);
+        FD_SET(right, &rfds);
+        memset(&sendbuf, 0, MAX_PACKET_SIZE);
+        memset(&recvbuf, 0, MAX_PACKET_SIZE);
+
+        status = select(listensock + 1, &rfds, NULL, NULL, NULL);
+
+        if (status == -1) {
+            die("select failed");
+        } else if (FD_ISSET(servsock, &rfds)) {
+            recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
+            struct packet *packet = unpack(recvbuf, MAX_PACKET_SIZE);
+            switch ()
+        }
     }
 
     close(listensock);
