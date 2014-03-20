@@ -26,16 +26,6 @@
 #include "typedefs.h"
 #include "hash.h"
 
-#define HOST_ADDR "localhost"
-#define HOST_PORT "9876"
-#define MAX_CONNECTIONS 2
-#define MAX_PACKET_SIZE 65579 // 65535 + 2 + 2 + 20 + 20
-#define HOSTNAME_LEN 64
-#define SERVER_ADDR "example.com"
-#define SERVER_PORT "1234"
-
-
-
 void die(const char *reason) {
     fprintf(stderr, "Fatal error: %s\n", reason);
     exit(1);
@@ -88,8 +78,8 @@ int main(void) {
     int cmdsock = -1;
 	int servsock = -1;
     int listensock = create_listen_socket();
-	void *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
-	void *recvbuf = malloc(MAX_PACKET_SIZE);    // packet received
+	byte *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
+	byte *recvbuf = malloc(MAX_PACKET_SIZE);    // packet received
 	int packetlen = 0;
 
     // Structs for connection info
@@ -137,7 +127,7 @@ int main(void) {
     hash_addr(&serv_addr, &serv_key);
 
     // Send DHT_REGISTER_BEGIN to server
-	packetlen = pack(sendbuf, MAX_PACKET_SIZE, serv_key, host_key,
+	packetlen = pack(&sendbuf, MAX_PACKET_SIZE, serv_key, host_key,
 	DHT_REGISTER_BEGIN, &host_addr, sizeof(uint16_t) + strlen(host_addr.addr));
 	sendall(servsock, sendbuf, packetlen, 0);
     
@@ -198,8 +188,8 @@ int main(void) {
                 die("error accepting new connection");
             }
             FD_SET(tempfd, &rfds);
-			recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
-			struct packet *packet = unpack(recvbuf, MAX_PACKET_SIZE);
+			packetlen = recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
+			struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_CLIENT_SHAKE:
                     sendall(tempfd, &SHAKE, 2, 0);
@@ -217,8 +207,8 @@ int main(void) {
             } else {
                 die("error");
             }
-            recvall(*tempfd, recvbuf, MAX_PACKET_SIZE, 0);
-            struct packet *packet = unpack(recvbuf, MAX_PACKET_SIZE);
+            packetlen = recvall(*tempfd, recvbuf, MAX_PACKET_SIZE, 0);
+            struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_TRANSFER_DATA:
                     // TODO: Implement hash ring
@@ -249,8 +239,8 @@ int main(void) {
             }
 
         } else if (FD_ISSET(servsock, &rfds)) {
-            recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
-            struct packet *packet = unpack(recvbuf, MAX_PACKET_SIZE);
+            packetlen = recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
+            struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_REGISTER_FAKE_ACK:
                     // First node in network (connecting), do nothing
@@ -258,7 +248,7 @@ int main(void) {
                     break;
 
                 case DHT_REGISTER_BEGIN:
-                    ;
+                    ; // Complier throws error without this
                     struct tcp_addr nb_addr;
                     build_tcp_addr(packet->payload, &nb_addr, NULL);
                     struct addrinfo nb_hints, *nb_info;
@@ -308,7 +298,6 @@ int main(void) {
                     break;
 
                 case DHT_DEREGISTER_ACK:
-                    // TODO Read neighbour addresses from payload
                     build_tcp_addr(packet->payload, &left_addr, &right_addr);
                     struct addrinfo left_hints, *left_info;
                     memset(&left_hints, 0, sizeof(struct addrinfo));
@@ -372,8 +361,8 @@ int main(void) {
         if (status == -1) {
             die("select failed");
         } else if (FD_ISSET(servsock, &rfds)) {
-            recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
-            struct packet *packet = unpack(recvbuf, MAX_PACKET_SIZE);
+            packetlen = recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
+            struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_DEREGISTER_DONE:
                     disconnecting = 0;
