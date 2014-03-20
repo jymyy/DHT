@@ -85,12 +85,12 @@ int main(void) {
 
     fd_set rfds;
     fd_set wfds;
-    int cmdsock;
-	int servsock;
+    int cmdsock = -1;
+	int servsock = -1;
     int listensock = create_listen_socket();
 	void *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
 	void *recvbuf = malloc(MAX_PACKET_SIZE);    // packet received
-	int packetlen;
+	int packetlen = 0;
 
     // Structs for connection info
 	struct addrinfo servhints, hosthints, *servinfo, *hostinfo;
@@ -209,7 +209,7 @@ int main(void) {
             }
 
 		} else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
-            int *tempfd;
+            int *tempfd = NULL;
             if (FD_ISSET(left, &rfds)) {
                 *tempfd = left;
             } else if (FD_ISSET(right, &rfds)) {
@@ -251,14 +251,14 @@ int main(void) {
         } else if (FD_ISSET(servsock, &rfds)) {
             recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, MAX_PACKET_SIZE);
-        }
-            /*switch (packet->type) {
+            switch (packet->type) {
                 case DHT_REGISTER_FAKE_ACK:
                     // First node in network (connecting), do nothing
                     lonely = 1;
                     break;
 
                 case DHT_REGISTER_BEGIN:
+                    ;
                     struct tcp_addr nb_addr;
                     build_tcp_addr(packet->payload, &nb_addr, NULL);
                     struct addrinfo nb_hints, *nb_info;
@@ -314,7 +314,7 @@ int main(void) {
                     memset(&left_hints, 0, sizeof(struct addrinfo));
                     left_hints.ai_family = AF_UNSPEC;
                     left_hints.ai_socktype = SOCK_STREAM;
-                    if ((status = getaddrinfo(left_addr->addr, left_addr->port, &left_hints, &left_info)) != 0) {
+                    if ((status = getaddrinfo(left_addr.addr, left_addr.port, &left_hints, &left_info)) != 0) {
                         die(gai_strerror(status));
                     }
                     if ((left = socket(left_info->ai_family, left_info->ai_socktype, left_info->ai_protocol)) == -1) {
@@ -328,7 +328,7 @@ int main(void) {
                     memset(&right_hints, 0, sizeof(struct addrinfo));
                     right_hints.ai_family = AF_UNSPEC;
                     right_hints.ai_socktype = SOCK_STREAM;
-                    if ((status = getaddrinfo(right_addr->addr, right_addr->port, &right_hints, &right_info)) != 0) {
+                    if ((status = getaddrinfo(right_addr.addr, right_addr.port, &right_hints, &right_info)) != 0) {
                         die(gai_strerror(status));
                     }
                     if ((right = socket(right_info->ai_family, right_info->ai_socktype, right_info->ai_protocol)) == -1) {
@@ -348,8 +348,8 @@ int main(void) {
                 default:
                     die("invalid header");
                 
-            }*/
-        
+            }
+        }
 		
     }
 
