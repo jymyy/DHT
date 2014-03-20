@@ -1,17 +1,6 @@
 #ifndef DHTPACKET_H
 #define DHTPACKET_H
 
-#include <sys/select.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <errno.h>
-#include <string.h>
-
 #include "typedefs.h"
 #include "dhtpackettypes.h"
 
