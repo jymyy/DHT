@@ -192,7 +192,7 @@ int main(void) {
 			struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_CLIENT_SHAKE:
-                    sendall(tempfd, &SHAKE, 2, 0);
+                    sendall(tempfd, (byte *) &SHAKE, 2, 0);
                     break;
                 default:
                     die("invalid handshake");

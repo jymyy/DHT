@@ -4,12 +4,12 @@
 /*
 Return length of sent data
 */
-int sendall(int socket, void *sendbuf, int packetlen, int flags);
+int sendall(int socket, byte *sendbuf, int packetlen, int flags);
 
 
 /*
 Return length of received packet
 */
-int recvall(int socket, void *recvbuf, int bufsize, int flags);
+int recvall(int socket, byte *recvbuf, int bufsize, int flags);
 
 #endif

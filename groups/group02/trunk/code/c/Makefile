@@ -2,7 +2,7 @@ CFLAGS=-c -g -Wall -Werror -lssl -D_POSIX_SOURCE -std=c99 -pedantic
 LDFLAGS=
 CC = gcc
 LD = gcc
-OBJS = dhtnode.o dhtpacket.o hash.o
+OBJS = dhtnode.o dhtpacket.o hash.o socketio.o
 PROG = dhtnode
 
 .c.o:
@@ -21,6 +21,9 @@ dhtpacket.o: dhtpacket.c
 
 hash.o: hash.c 
 	$(CC) $(CFLAGS) hash.c
+
+socketio.o: socketio.c
+	$(CC) $(CFLAGS) socketio.c
 
 clean:
 	/bin/rm -f *.o dhtnode
