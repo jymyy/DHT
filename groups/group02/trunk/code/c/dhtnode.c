@@ -79,7 +79,9 @@ int main(void) {
 	int servsock = -1;
     int listensock = create_listen_socket();
 	byte *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
+    memset(sendbuf, 0, MAX_PACKET_SIZE);
 	byte *recvbuf = malloc(MAX_PACKET_SIZE);    // packet received
+    memset(recvbuf, 0, MAX_PACKET_SIZE);
 	int packetlen = 0;
 
     // Structs for connection info
@@ -100,7 +102,7 @@ int main(void) {
         die(gai_strerror(status));
     }
 	
-	listensock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+	servsock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
 	if (connect(servsock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
         die(strerror(errno));
     }
@@ -108,7 +110,7 @@ int main(void) {
     // Handshake with server
 	// sendall(servsock, &DHT_CLIENT_SHAKE, 2, 0);
 	// recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
-    int SHAKE = DHT_CLIENT_SHAKE;
+    int SHAKE = htons(DHT_CLIENT_SHAKE);;
     send(servsock, &SHAKE, 2, 0);
     recv(servsock, recvbuf, MAX_PACKET_SIZE, 0);
 
@@ -127,9 +129,14 @@ int main(void) {
     hash_addr(&serv_addr, &serv_key);
 
     // Send DHT_REGISTER_BEGIN to server
+    uint16_t port = htons(atoi(host_addr.port));
+	byte *pl = malloc(sizeof(uint16_t) + strlen(host_addr.addr) + 1);
+	memcpy(pl, &port, sizeof(uint16_t));
+	memcpy(pl+sizeof(uint16_t), host_addr.addr, strlen(host_addr.addr) + 1);
 	packetlen = pack(&sendbuf, MAX_PACKET_SIZE, serv_key, host_key,
-	DHT_REGISTER_BEGIN, &host_addr, sizeof(uint16_t) + strlen(host_addr.addr));
+	DHT_REGISTER_BEGIN, pl, sizeof(uint16_t) + strlen(host_addr.addr) + 1);
 	sendall(servsock, sendbuf, packetlen, 0);
+	free(pl);
     
 
     while(running) {
@@ -145,10 +152,10 @@ int main(void) {
         }
 
         // Reset buffers
-        memset(&sendbuf, 0, MAX_PACKET_SIZE);
-        memset(&recvbuf, 0, MAX_PACKET_SIZE);
+        memset(sendbuf, 0, MAX_PACKET_SIZE);
+        memset(recvbuf, 0, MAX_PACKET_SIZE);
 
-		status = select(listensock + 1, &rfds, NULL, NULL, NULL);
+		status = select(servsock + 1, &rfds, NULL, NULL, NULL);
 
 		if (status == -1) {
 			die("select failed");
