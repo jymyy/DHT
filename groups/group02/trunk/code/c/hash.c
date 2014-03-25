@@ -6,16 +6,15 @@
 * (should be 20).
 */
 int hash_addr(struct tcp_addr *tcp_addr, sha1_t key) {
-    // For some reason hashing port first and then the address part (using
+    // For some reason hashing port first and then address (using
     // DigestUpdate twice) doesn't work. Therefore port and address have to
-    // be copied to single buffer and then hashed.
+    // be copied to a single buffer and hashed together.
     byte *pl = malloc(sizeof(uint16_t) + strlen(tcp_addr->addr) + 1);
     uint16_t port = htons(atoi(tcp_addr->port));
     memcpy(pl, &port, sizeof(uint16_t));
     memcpy(pl+sizeof(uint16_t), tcp_addr->addr, strlen(tcp_addr->addr) + 1);
     
-    OpenSSL_add_all_algorithms();
-    const EVP_MD *md = EVP_get_digestbyname("SHA1");
+    const EVP_MD *md = EVP_sha1();
     unsigned int md_len = -1;
     EVP_MD_CTX mdctx;
     EVP_MD_CTX_init(&mdctx);

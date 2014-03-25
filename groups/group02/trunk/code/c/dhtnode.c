@@ -1,13 +1,3 @@
-/* You can use this file as a starting point for your C code. */
-
-/* Reading the documentation for select and for TCP/IP is strongly advised;
-   see e.g. man pages:
-   select(2)
-   select_tut(2)
-   tcp(7)
-   ip(7) */
-
-
 #include <sys/select.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,7 +48,7 @@ int create_listen_socket(char *port) {
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        die("host port not defined");
+        die("give host port as an argument");
     }
     char *host_port = argv[1];
     int status = 0;
@@ -79,9 +69,9 @@ int main(int argc, char **argv) {
     int cmdsock = -1;
 	int servsock = -1;
     int listensock = create_listen_socket(host_port);
-	byte *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
+	byte *sendbuf = malloc(MAX_PACKET_SIZE);
+	byte *recvbuf = malloc(MAX_PACKET_SIZE);
     memset(sendbuf, 0, MAX_PACKET_SIZE);
-	byte *recvbuf = malloc(MAX_PACKET_SIZE);    // packet received
     memset(recvbuf, 0, MAX_PACKET_SIZE);
 	int packetlen = 0;
 
@@ -132,13 +122,16 @@ int main(int argc, char **argv) {
     hash_addr(&host_addr, host_key);
     hash_addr(&serv_addr, serv_key);
 
+    freeaddrinfo(hostinfo);
+    freeaddrinfo(servinfo);
+
     // Send DHT_REGISTER_BEGIN to server
     uint16_t port = htons(atoi(host_addr.port));
 	byte *pl = malloc(sizeof(uint16_t) + strlen(host_addr.addr) + 1);
 	memcpy(pl, &port, sizeof(uint16_t));
 	memcpy(pl+sizeof(uint16_t), host_addr.addr, strlen(host_addr.addr) + 1);
 	packetlen = pack(sendbuf, MAX_PACKET_SIZE, serv_key, host_key,
-	DHT_REGISTER_BEGIN, pl, sizeof(uint16_t) + strlen(host_addr.addr) + 1);
+	   DHT_REGISTER_BEGIN, pl, sizeof(uint16_t) + strlen(host_addr.addr) + 1);
 	sendall(servsock, sendbuf, packetlen, 0);
 	free(pl);
     
@@ -165,7 +158,7 @@ int main(int argc, char **argv) {
 		if (status == -1) {
 			die("select failed");
 		} 
-        if (FD_ISSET(cmdsock, &rfds)) { // cmdsock
+        if (FD_ISSET(cmdsock, &rfds)) {
             /*
             cmd = read_cmd_from_cmdsock()
             switch (cmd) {
@@ -207,7 +200,7 @@ int main(int argc, char **argv) {
 
                     if (ACKS_RECEIVED == 2) {
                         packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
-                        DHT_REGISTER_DONE, NULL, 0);
+                            DHT_REGISTER_DONE, NULL, 0);
                         sendall(servsock, sendbuf, packetlen, 0);
                     }
                     break;
@@ -215,12 +208,14 @@ int main(int argc, char **argv) {
                     // Received all data from leaving neighbour
                     close(tempfd);
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->sender, host_key,
-                    DHT_DEREGISTER_DONE, NULL, 0);
+                        DHT_DEREGISTER_DONE, NULL, 0);
                     sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 default:
                     die("invalid header");
             }
+            free(packet->payload);
+            free(packet);
 
         } else if (FD_ISSET(servsock, &rfds)) {
             packetlen = recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
@@ -230,7 +225,7 @@ int main(int argc, char **argv) {
                     // First node in network (connecting), do nothing
                     lonely = 1;
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
-					DHT_REGISTER_DONE, NULL, 0);
+					   DHT_REGISTER_DONE, NULL, 0);
 					sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 case DHT_REGISTER_BEGIN:
@@ -263,7 +258,7 @@ int main(int argc, char **argv) {
 
                     // TODO Send data
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, nb_key, nb_key,
-                    DHT_REGISTER_ACK, NULL, 0);
+                        DHT_REGISTER_ACK, NULL, 0);
                     sendall(tempfd, sendbuf, packetlen, 0);
                     close(tempfd);
 
@@ -286,16 +281,18 @@ int main(int argc, char **argv) {
 						while (recv(tempfd, recvbuf, MAX_PACKET_SIZE, 0) != 2);                    ;
 
 						packetlen = pack(sendbuf, MAX_PACKET_SIZE, nb_key, nb_key,
-						DHT_REGISTER_ACK, NULL, 0);
+						  DHT_REGISTER_ACK, NULL, 0);
 						sendall(tempfd, sendbuf, packetlen, 0);
 						close(tempfd);
                     }
                     break;
 
                 case DHT_REGISTER_DONE:
-                    // Forget data sent to new neighbour
+                    // TODO Forget data sent to new neighbour
                     break;
-
+                case DHT_DEREGISTER_BEGIN:
+                	// Nothing to be done
+                	break;
                 case DHT_DEREGISTER_ACK:
                     build_tcp_addr(packet->payload, &left_addr, &right_addr);
                     struct addrinfo left_hints, *left_info;
@@ -339,8 +336,10 @@ int main(int argc, char **argv) {
                     }
                     fprintf(stderr, "\n");
                     die("invalid header");
-                
             }
+            free(packet->payload);
+            free(packet);
+
         } else if (FD_ISSET(listensock, &rfds)) {
             struct sockaddr_in tempaddr;
             int tempfd;
@@ -362,18 +361,6 @@ int main(int argc, char **argv) {
             } else {
                 die("invalid handshake");
             }
-
-            /*
-            packetlen = recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
-            struct packet *packet = unpack(recvbuf, packetlen);
-            switch (packet->type) {
-                case DHT_CLIENT_SHAKE:
-                    send(tempfd, &SHAKE, 2, 0);
-                    break;
-                default:
-                    die("invalid handshake");
-            }
-            */
         }
     }
 
@@ -410,14 +397,14 @@ int main(int argc, char **argv) {
                 sha1_t left_key;
                 hash_addr(&left_addr, left_key);
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, left_key, host_key,
-                DHT_DEREGISTER_ACK, NULL, 0);
+                    DHT_DEREGISTER_ACK, NULL, 0);
                 sendall(left, sendbuf, packetlen, 0);
                 close(left);
             } else if (FD_ISSET(right, &wfds)) {
                 sha1_t right_key;
                 hash_addr(&right_addr, right_key);
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, right_key, host_key,
-                DHT_DEREGISTER_ACK, NULL, 0);
+                    DHT_DEREGISTER_ACK, NULL, 0);
                 sendall(right, sendbuf, packetlen, 0);
                 close(right);
             } else {
@@ -429,6 +416,8 @@ int main(int argc, char **argv) {
 
     close(listensock);
     close(servsock);
+    free(sendbuf);
+    free(recvbuf);
     
 
     return 0;

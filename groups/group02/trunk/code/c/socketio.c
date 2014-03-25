@@ -13,7 +13,6 @@ int sendall(int socket, byte *sendbuf, int packetlen, int flags) {
 	return bytes_sent;		
 }
 
-
 /*
 Receive data until a complete packet is received and return length of received packet
 */
@@ -22,13 +21,17 @@ int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
 	int offset = 0;
 	uint16_t pl_len = 0;
 
+	// Receive header
 	while (bytes_received < PACKET_HEADER_LEN) {
 		bytes_received += recv(socket, recvbuf+bytes_received, PACKET_HEADER_LEN, flags);
 	}
+
+	// Adjust offset, see comments of "unpack" for more info
 	if (recvbuf[0] == '?') {
 			offset = 1;
 	}
 
+	// Check length of the packet and receive more data if needed
 	memcpy(&pl_len, recvbuf+PL_LEN_OFFSET+offset, sizeof(uint16_t));
 	pl_len = ntohs(pl_len);
 	while (bytes_received < PACKET_HEADER_LEN + pl_len + offset) {
