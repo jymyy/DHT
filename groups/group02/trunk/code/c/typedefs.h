@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
+#include <openssl/sha.h>
 
 
 #define HOST_ADDR "localhost"
@@ -31,7 +32,7 @@
 
 typedef unsigned char byte;
 
-typedef unsigned char sha1_t[20];
+typedef unsigned char sha1_t[SHA_DIGEST_LENGTH];
 
 struct tcp_addr {
     char port[5];

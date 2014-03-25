@@ -71,7 +71,6 @@ int main(void) {
     struct tcp_addr right_addr;
     sha1_t host_key;
     sha1_t serv_key;
-    // hash_addr(&host_addr, &host_key);
 
     fd_set rfds;
     fd_set wfds;
@@ -125,8 +124,8 @@ int main(void) {
     inet_ntop(AF_INET, &(sb->sin_addr), serv_ip4, INET_ADDRSTRLEN);
     struct tcp_addr serv_addr = {.addr = serv_ip4, .port = SERVER_PORT};
 
-    hash_addr(&host_addr, &host_key);
-    hash_addr(&serv_addr, &serv_key);
+    hash_addr(&host_addr, host_key);
+    hash_addr(&serv_addr, serv_key);
 
     // Send DHT_REGISTER_BEGIN to server
     uint16_t port = htons(atoi(host_addr.port));
@@ -275,7 +274,7 @@ int main(void) {
 
                     // TODO Send data
                     sha1_t nb_key;
-                    hash_addr(&nb_addr, &nb_key);
+                    hash_addr(&nb_addr, nb_key);
                     packetlen = pack(&sendbuf, MAX_PACKET_SIZE, nb_key, nb_key,
                     DHT_REGISTER_ACK, NULL, 0);
                     sendall(servsock, sendbuf, packetlen, 0);
@@ -380,14 +379,14 @@ int main(void) {
         } else if (FD_ISSET(left, &wfds) || FD_ISSET(right, &wfds)) {
             if (FD_ISSET(left, &wfds)) {
                 sha1_t left_key;
-                hash_addr(&left_addr, &left_key);
+                hash_addr(&left_addr, left_key);
                 packetlen = pack(&sendbuf, MAX_PACKET_SIZE, left_key, host_key,
                 DHT_DEREGISTER_ACK, NULL, 0);
                 sendall(left, sendbuf, packetlen, 0);
                 close(left);
             } else if (FD_ISSET(right, &wfds)) {
                 sha1_t right_key;
-                hash_addr(&right_addr, &right_key);
+                hash_addr(&right_addr, right_key);
                 packetlen = pack(&sendbuf, MAX_PACKET_SIZE, right_key, host_key,
                 DHT_DEREGISTER_ACK, NULL, 0);
                 sendall(right, sendbuf, packetlen, 0);

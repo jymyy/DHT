@@ -1,4 +1,4 @@
-CFLAGS=-c -g -Wall -Werror -std=c99 -D_POSIX_SOURCE -pedantic
+CFLAGS=-c -g -Wall -std=c99 -D_POSIX_SOURCE -pedantic
 LDFLAGS=-lssl -lcrypto
 CC = gcc
 LD = gcc

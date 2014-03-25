@@ -2,8 +2,7 @@
 #include "typedefs.h"
 
 int pack(byte **buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t type, byte *payload, uint16_t pl_len) {
-    int sha1_len = sizeof(sha1_t);
-    memcpy(*buf+TARGET_OFFSET, target_key, sha1_len);
+    memcpy(*buf+TARGET_OFFSET, target_key, sizeof(sha1_t));
     memcpy(*buf+SENDER_OFFSET, sender_key, sizeof(sha1_t));
     uint16_t type_htons = htons(type);
     uint16_t pl_len_htons = htons(pl_len);
