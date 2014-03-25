@@ -14,11 +14,10 @@
 #include <string.h>
 #include <openssl/sha.h>
 
-
+#define MAX_CONNECTIONS 2
+#define MAX_ADDR_LEN 64
 #define HOST_ADDR "localhost"
 #define HOST_PORT "9876"
-#define MAX_CONNECTIONS 2
-#define HOSTNAME_LEN 64
 #define SERVER_ADDR "localhost"
 #define SERVER_PORT "1234"
 
@@ -36,7 +35,7 @@ typedef unsigned char sha1_t[SHA_DIGEST_LENGTH];
 
 struct tcp_addr {
     char port[5];
-    char *addr;
+    char addr[MAX_ADDR_LEN];
 };
 
 struct packet {
