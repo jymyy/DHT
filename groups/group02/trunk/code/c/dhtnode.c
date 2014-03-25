@@ -31,7 +31,7 @@ void die(const char *reason) {
     exit(1);
 }
 
-int create_listen_socket() {
+int create_listen_socket(char *port) {
     int fd;
     int t;
 
@@ -39,7 +39,7 @@ int create_listen_socket() {
 
     a.sin_addr.s_addr = INADDR_ANY;
     a.sin_family = AF_INET;
-    a.sin_port = htons(atoi(HOST_PORT));
+    a.sin_port = htons(atoi(port));
 
     fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd == -1)
@@ -56,8 +56,12 @@ int create_listen_socket() {
     return fd;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
     // Program state
+    if (argc != 2) {
+        die("host port not defined");
+    }
+    char *host_port = argv[1];
     int status = 0;
     int running = 1;
     
@@ -66,7 +70,6 @@ int main(void) {
     int left = -1;  // left neighbour socket
     int right = -1; // right neighbour socket
     int lonely = 0;
-    // struct tcp_addr host_addr = {.port = HOST_PORT, .addr = HOST_ADDR};
     struct tcp_addr left_addr;
     struct tcp_addr right_addr;
     sha1_t host_key;
@@ -76,7 +79,7 @@ int main(void) {
     fd_set wfds;
     int cmdsock = -1;
 	int servsock = -1;
-    int listensock = create_listen_socket();
+    int listensock = create_listen_socket(host_port);
 	byte *sendbuf = malloc(MAX_PACKET_SIZE);   // packet to be sent
     memset(sendbuf, 0, MAX_PACKET_SIZE);
 	byte *recvbuf = malloc(MAX_PACKET_SIZE);    // packet received
@@ -93,7 +96,7 @@ int main(void) {
 	hosthints.ai_socktype = SOCK_STREAM;
 	hosthints.ai_flags = AI_PASSIVE;
 
-	if ((status = getaddrinfo(NULL, HOST_PORT, &hosthints, &hostinfo)) != 0) {
+	if ((status = getaddrinfo(NULL, host_port, &hosthints, &hostinfo)) != 0) {
         die(gai_strerror(status));
     }
 
@@ -107,8 +110,6 @@ int main(void) {
     }
 
     // Handshake with server
-	// sendall(servsock, &DHT_CLIENT_SHAKE, 2, 0);
-	// recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
     int SHAKE = htons(DHT_CLIENT_SHAKE);;
     send(servsock, &SHAKE, 2, 0);
     recv(servsock, recvbuf, MAX_PACKET_SIZE, 0);
@@ -117,7 +118,8 @@ int main(void) {
     struct sockaddr_in *sa = (struct sockaddr_in *) hostinfo;
     char host_ip4[INET_ADDRSTRLEN]; 
     inet_ntop(AF_INET, &(sa->sin_addr), host_ip4, INET_ADDRSTRLEN);
-	struct tcp_addr host_addr = {.addr = host_ip4, .port = HOST_PORT};
+	struct tcp_addr host_addr = {.addr = host_ip4};
+    strcpy(host_addr.port, host_port);
 
     struct sockaddr_in *sb = (struct sockaddr_in *) servinfo;
     char serv_ip4[INET_ADDRSTRLEN]; 
