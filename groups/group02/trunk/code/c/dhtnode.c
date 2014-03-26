@@ -264,7 +264,10 @@ int main(int argc, char **argv) {
                     // TODO Forget data sent to new neighbour
                     break;
                 case DHT_DEREGISTER_BEGIN:
-                	// Nothing to be done
+                	// A node leaves abnormally
+                	packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->sender, host_key,
+						DHT_DEREGISTER_DONE, NULL, 0);
+					sendall(servsock, sendbuf, packetlen, 0);
                 	break;
                 case DHT_DEREGISTER_ACK:
                     build_tcp_addr(packet->payload, &left_addr, &right_addr);
