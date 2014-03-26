@@ -101,8 +101,10 @@ int main(int argc, char **argv) {
     // Handshake with server
     int CLIENT_SHAKE = htons(DHT_CLIENT_SHAKE);
     int SERVER_SHAKE = htons(DHT_SERVER_SHAKE);
+    DEBUG("Handshaking with server... ");
     send(servsock, &CLIENT_SHAKE, 2, 0);
     recv(servsock, recvbuf, MAX_PACKET_SIZE, 0);
+    DEBUG("ready\n");
 
     // Create keys and address structs
     struct sockaddr_in *sa = (struct sockaddr_in *) hostinfo->ai_addr;
@@ -230,6 +232,7 @@ int main(int argc, char **argv) {
                     ; // Complier throws error without this
                     struct tcp_addr nb_addr;
                     build_tcp_addr(packet->payload, &nb_addr, NULL);
+                    DEBUG("Addr: %s, port: %s\n", nb_addr.addr, nb_addr.port);
                     struct addrinfo nb_hints, *nb_info;
                     int tempfd;
                     memset(&nb_hints, 0, sizeof(struct addrinfo));
@@ -251,8 +254,10 @@ int main(int argc, char **argv) {
                     
                     sha1_t nb_key;
                     hash_addr(&nb_addr, nb_key);
+                    DEBUG("Handshaking with %d... ", tempfd);
                     send(tempfd, &CLIENT_SHAKE, 2, 0);
-                    while (recv(tempfd, recvbuf, MAX_PACKET_SIZE, 0) != 2);                    ;
+                    while (recv(tempfd, recvbuf, MAX_PACKET_SIZE, 0) != 2);
+                    DEBUG("ready\n");
 
                     // TODO Send data
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, nb_key, nb_key,
@@ -331,9 +336,11 @@ int main(int argc, char **argv) {
             } else {
                 die("error accepting new connection");
             }
+            DEBUG("Handshaking with %d... ", tempfd);
             recv(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
             if (recvbuf[0] == 'A' && recvbuf[1] == '!') {
                 send(tempfd, &SERVER_SHAKE, 2, 0);
+                DEBUG("ready\n");
             } else {
                 die("invalid handshake");
             }
