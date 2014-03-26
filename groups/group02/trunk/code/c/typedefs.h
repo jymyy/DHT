@@ -29,6 +29,9 @@
 #define PL_LEN_OFFSET 42
 #define PAYLOAD_OFFSET 44
 
+#define DEBUG_ON 1
+#define DEBUG(...) do { if (DEBUG_ON) fprintf(stderr, __VA_ARGS__); } while (0)
+
 typedef unsigned char byte;
 
 typedef unsigned char sha1_t[SHA_DIGEST_LENGTH];

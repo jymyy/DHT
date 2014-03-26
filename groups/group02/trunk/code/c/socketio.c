@@ -6,10 +6,12 @@
 Send data until all data is sent and return length of sent data
 */
 int sendall(int socket, byte *sendbuf, int packetlen, int flags) {
+	DEBUG("Sending... ");
 	int bytes_sent = 0;
 	while (bytes_sent < packetlen) {
 		bytes_sent += send(socket, sendbuf+bytes_sent, packetlen-bytes_sent, flags);
 	}
+	DEBUG("ready\n");
 	return bytes_sent;		
 }
 
@@ -17,6 +19,7 @@ int sendall(int socket, byte *sendbuf, int packetlen, int flags) {
 Receive data until a complete packet is received and return length of received packet
 */
 int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
+	DEBUG("Receiving... ");
 	int bytes_received = 0;
 	int offset = 0;
 	uint16_t pl_len = 0;
@@ -38,6 +41,7 @@ int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
 		bytes_received += recv(socket, recvbuf+bytes_received, pl_len+offset, flags);
 	}
 	
+	DEBUG("ready\n");
 	return bytes_received;
 }
 
