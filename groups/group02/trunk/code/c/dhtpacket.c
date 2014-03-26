@@ -11,6 +11,8 @@ int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t t
     if (payload != NULL) {
         memcpy(buf+PAYLOAD_OFFSET, payload, pl_len);
     }
+    
+    fprintf(stderr, "Packing packet of type %d\n", type);
     return PACKET_HEADER_LEN + pl_len;
 }
 
@@ -38,6 +40,7 @@ struct packet* unpack(byte *buf, int packetlen) {
         packet->payload = NULL;
     }
 
+    fprintf(stderr, "Unpacking packet of type %d with offset of %d\n", packet->type, offset);
     return packet;  
     
 }

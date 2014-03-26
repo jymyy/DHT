@@ -58,7 +58,6 @@ int main(int argc, char **argv) {
     int ACKS_RECEIVED = 0;
     int left = -1;  // left neighbour socket
     int right = -1; // right neighbour socket
-    int lonely = 0;
     struct tcp_addr left_addr;
     struct tcp_addr right_addr;
     sha1_t host_key;
@@ -222,8 +221,7 @@ int main(int argc, char **argv) {
             struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_REGISTER_FAKE_ACK:
-                    // First node in network (connecting), do nothing
-                    lonely = 1;
+                    // First node in network (connecting)
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
 					   DHT_REGISTER_DONE, NULL, 0);
 					sendall(servsock, sendbuf, packetlen, 0);
@@ -261,32 +259,7 @@ int main(int argc, char **argv) {
                         DHT_REGISTER_ACK, NULL, 0);
                     sendall(tempfd, sendbuf, packetlen, 0);
                     close(tempfd);
-
-                    if (lonely) {
-                        lonely = 0;
-                        if ((status = getaddrinfo(nb_addr.addr, nb_addr.port, &nb_hints, &nb_info)) != 0) {
-							die(gai_strerror(status));
-						}
-						if ((tempfd = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
-							fprintf(stderr, "Socket creation failed\n");
-							continue;
-						}
-						if ((status = connect(tempfd, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
-							fprintf(stderr, "Connecting failed\n");
-							close(tempfd);
-							continue;
-						}
-
-						send(tempfd, &CLIENT_SHAKE, 2, 0);
-						while (recv(tempfd, recvbuf, MAX_PACKET_SIZE, 0) != 2);                    ;
-
-						packetlen = pack(sendbuf, MAX_PACKET_SIZE, nb_key, nb_key,
-						  DHT_REGISTER_ACK, NULL, 0);
-						sendall(tempfd, sendbuf, packetlen, 0);
-						close(tempfd);
-                    }
                     break;
-
                 case DHT_REGISTER_DONE:
                     // TODO Forget data sent to new neighbour
                     break;
