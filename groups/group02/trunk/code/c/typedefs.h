@@ -21,6 +21,7 @@
 #define SERVER_ADDR "localhost"
 #define SERVER_PORT "1234"
 
+// Offset values for packing and unpacking
 #define MAX_PACKET_SIZE 65579 // 65535 + 2 + 2 + 20 + 20
 #define PACKET_HEADER_LEN 44
 #define TARGET_OFFSET 0

@@ -2,8 +2,7 @@
 #include <openssl/evp.h>
 
 /*
-* Hash TCP address and put result in key. Return length of the key
-* (should be 20).
+* Hash TCP address and put result in key. Return length of the key.
 */
 int hash_addr(struct tcp_addr *tcp_addr, sha1_t key) {
     // For some reason hashing port first and then address (using

@@ -1,6 +1,9 @@
 #include "dhtpacket.h"
 #include "typedefs.h"
 
+/*
+* Create packet with given parameters into buffer buf.
+*/
 int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t type, byte *payload, uint16_t pl_len) {
     memcpy(buf+TARGET_OFFSET, target_key, sizeof(sha1_t));
     memcpy(buf+SENDER_OFFSET, sender_key, sizeof(sha1_t));
@@ -16,6 +19,9 @@ int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t t
     return PACKET_HEADER_LEN + pl_len;
 }
 
+/*
+* Return packet constructed from data in buffer buf.
+*/
 struct packet* unpack(byte *buf, int packetlen) {
     // There is a bug/undocumented behaviour in the server.
     // Sometimes when the server sends a packet (usually if it is a

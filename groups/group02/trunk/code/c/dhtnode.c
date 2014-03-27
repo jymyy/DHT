@@ -68,6 +68,8 @@ int main(int argc, char **argv) {
     int cmdsock = -1;
 	int servsock = -1;
     int listensock = create_listen_socket(host_port);
+
+    // Buffers for sending and receiving
 	byte *sendbuf = malloc(MAX_PACKET_SIZE);
 	byte *recvbuf = malloc(MAX_PACKET_SIZE);
     memset(sendbuf, 0, MAX_PACKET_SIZE);
@@ -95,7 +97,7 @@ int main(int argc, char **argv) {
 	
 	servsock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
 	if (connect(servsock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-        die(strerror(errno));
+        die("connection refused (is server running?)");
     }
 
     // Handshake with server
@@ -103,7 +105,7 @@ int main(int argc, char **argv) {
     int SERVER_SHAKE = htons(DHT_SERVER_SHAKE);
     DEBUG("Handshaking with server... ");
     send(servsock, &CLIENT_SHAKE, 2, 0);
-    recv(servsock, recvbuf, MAX_PACKET_SIZE, 0);
+    while (recv(servsock, recvbuf, 2, 0) != 2);
     DEBUG("ready\n");
 
     // Create keys and address structs
@@ -145,7 +147,8 @@ int main(int argc, char **argv) {
                 DHT_DEREGISTER_BEGIN, NULL, 0);
             sendall(servsock, sendbuf, packetlen, 0);
         }
-        // Add appropriate sockets to listening pool
+
+        // Add sockets to listening pool
 		FD_ZERO(&rfds);
 		FD_SET(listensock, &rfds);
         FD_SET(servsock, &rfds);
@@ -160,31 +163,15 @@ int main(int argc, char **argv) {
         memset(sendbuf, 0, MAX_PACKET_SIZE);
         memset(recvbuf, 0, MAX_PACKET_SIZE);
 
-        // Let's hope 20 is high enough for numfds...
+        // Let's hope 10 is high enough for numfds...
         struct timeval timeout;
         timeout.tv_sec = 1;
 		status = select(10, &rfds, NULL, NULL, &timeout);
 
 		if (status == -1) {
 			die("select failed");
-		} 
-        if (FD_ISSET(cmdsock, &rfds)) {
-            /*
-            cmd = read_cmd_from_cmdsock()
-            switch (cmd) {
-                case PUT_DATA:
-                    break;
-                case GET_DATA:
-                    break;
-                case TERMINATE:
-                    packetlen = pack(&sendbuf, MAX_PACKET_SIZE, target_key, sender_key,
-                    DHT_DEREGISTER_BEGIN, NULL, 0);
-                    sendall(servsock, sendbuf, packetlen, 0);
-                    break;
-                default:
-                    die();
-            }
-            */
+		} else if (FD_ISSET(cmdsock, &rfds)) {
+            // TODO Command socket for communicating with UI
 		} else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
             int tempfd = -1;
             if (FD_ISSET(left, &rfds)) {
@@ -193,18 +180,16 @@ int main(int argc, char **argv) {
             } else if (FD_ISSET(right, &rfds)) {
                 tempfd = right;
                 right = -1;
-            } else {
-                die("error");
             }
             packetlen = recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_TRANSFER_DATA:
-                    // TODO: Implement hash ring
-                    // insert_data(ring, packet->payload, packet->pl_len);
+                    // TODO: Implement data structure and insert data there
                     break;
                 case DHT_REGISTER_ACK:
-                    // Received data from neighbour (connecting)
+                    // Received all data from neighbour, send DONE to server if
+                    // ACK received from both neighbours
                     acks_received++;
                     close(tempfd);
 
@@ -215,7 +200,7 @@ int main(int argc, char **argv) {
                     }
                     break;
                 case DHT_DEREGISTER_ACK:
-                    // Received all data from leaving neighbour
+                    // Received all data from leaving neighbour, acknowledge this to server
                     close(tempfd);
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->sender, host_key,
                         DHT_DEREGISTER_DONE, NULL, 0);
@@ -232,18 +217,19 @@ int main(int argc, char **argv) {
             struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_REGISTER_FAKE_ACK:
-                    // First node in network (connecting)
+                    // First node in network
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
 					   DHT_REGISTER_DONE, NULL, 0);
 					sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 case DHT_REGISTER_BEGIN:
-                    ; // Complier throws error without this
-                    struct tcp_addr nb_addr;
-                    build_tcp_addr(packet->payload, &nb_addr, NULL);
-                    DEBUG("Addr: %s, port: %s\n", nb_addr.addr, nb_addr.port);
-                    struct addrinfo nb_hints, *nb_info;
+                    // New node is trying to join, connect and send data
+                    ; // Complier throws error without this semicolon
                     int tempfd;
+                    struct tcp_addr nb_addr;
+                    struct addrinfo nb_hints, *nb_info;
+                    build_tcp_addr(packet->payload, &nb_addr, NULL);
+                    
                     memset(&nb_hints, 0, sizeof(struct addrinfo));
                     nb_hints.ai_family = AF_INET;
                     nb_hints.ai_socktype = SOCK_STREAM;
@@ -259,8 +245,8 @@ int main(int argc, char **argv) {
 						close(tempfd);
 						continue;
 					}
-
                     
+                    // Handshake with new node
                     sha1_t nb_key;
                     hash_addr(&nb_addr, nb_key);
                     DEBUG("Handshaking with %d... ", tempfd);
@@ -269,6 +255,7 @@ int main(int argc, char **argv) {
                     DEBUG("ready\n");
 
                     // TODO Send data
+                    // Send ACK to new node to inform that all data is sent
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, nb_key, nb_key,
                         DHT_REGISTER_ACK, NULL, 0);
                     sendall(tempfd, sendbuf, packetlen, 0);
@@ -284,7 +271,10 @@ int main(int argc, char **argv) {
 					sendall(servsock, sendbuf, packetlen, 0);
                 	break;
                 case DHT_DEREGISTER_ACK:
+                    // Server has responded to our attempt to leave, create connections to both neighbours
                     build_tcp_addr(packet->payload, &left_addr, &right_addr);
+
+                    // Connect to left neighbour
                     struct addrinfo left_hints, *left_info;
                     memset(&left_hints, 0, sizeof(struct addrinfo));
                     left_hints.ai_family = AF_INET;
@@ -299,11 +289,13 @@ int main(int argc, char **argv) {
                         die(strerror(errno));
                     }
 
+                    // Handshake with left
                     DEBUG("Handshaking with %d... ", left);
                     send(left, &CLIENT_SHAKE, 2, 0);
                     while (recv(left, recvbuf, MAX_PACKET_SIZE, 0) != 2);
                     DEBUG("ready\n");
 
+                    // Connect to right neighbour
                     struct addrinfo right_hints, *right_info;
                     memset(&right_hints, 0, sizeof(struct addrinfo));
                     right_hints.ai_family = AF_INET;
@@ -318,29 +310,34 @@ int main(int argc, char **argv) {
                         die(strerror(errno));
                     }
 
+                    // Handshake with right
                     DEBUG("Handshaking with %d... ", right);
                     send(right, &CLIENT_SHAKE, 2, 0);
                     while (recv(right, recvbuf, MAX_PACKET_SIZE, 0) != 2);
                     DEBUG("ready\n");
 
+                    // Cleanup
+                    freeaddrinfo(left_info);
+                    freeaddrinfo(right_info);
                     running = 0;
                     break;
-
                 case DHT_DEREGISTER_DENY:
-                    // TODO Inform user
+                    // Leaving attempt denied
                     fprintf(stderr, "Leaving denied\n");
                     break;
                 default:
+                    // Invalid packet type, dump packet and die
                     for (int i = 0; i < packetlen; ++i) {
                         fprintf(stderr, "%x ", recvbuf[i]);
                     }
                     fprintf(stderr, "\n");
-                    die("invalid header");
+                    die("invalid packet type");
             }
             free(packet->payload);
             free(packet);
 
         } else if (FD_ISSET(listensock, &rfds)) {
+            // Another node tries to connect
             struct sockaddr_in tempaddr;
             int tempfd;
             unsigned int addrlen = 0;
@@ -366,7 +363,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    
+    // Server accepted our leaving attempt and connections
+    // to both neighbours have been established. Send data to
+    // neighbours and wait confirmation from server.
     int disconnecting = 1;
     int deregs_received = 0;
     DEBUG("DISCONNECTING\n");
@@ -375,24 +374,19 @@ int main(int argc, char **argv) {
         FD_ZERO(&wfds);
         FD_SET(servsock, &rfds);
         if (left != -1) {
-            DEBUG("Setting left %d\n", left);
             FD_SET(left, &wfds);
         } 
         if (right != -1) {
-            DEBUG("Setting right %d\n", right);
             FD_SET(right, &wfds);
         }
         memset(sendbuf, 0, MAX_PACKET_SIZE);
         memset(recvbuf, 0, MAX_PACKET_SIZE);
 
-        DEBUG("Selecting... ");
         status = select(10, &rfds, &wfds, NULL, NULL);
-        DEBUG("ready\n");
 
         if (status == -1) {
             die("select failed");
         } else if (FD_ISSET(servsock, &rfds)) {
-            DEBUG("Selected server\n");
             packetlen = recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
@@ -409,7 +403,7 @@ int main(int argc, char **argv) {
             }
         } else if (FD_ISSET(left, &wfds) || FD_ISSET(right, &wfds)) {
             if (FD_ISSET(left, &wfds)) {
-                DEBUG("Selected left\n");
+                // Send data to left neighbour
                 sha1_t left_key;
                 hash_addr(&left_addr, left_key);
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, left_key, host_key,
@@ -418,7 +412,7 @@ int main(int argc, char **argv) {
                 close(left);
                 left = -1;
             } else if (FD_ISSET(right, &wfds)) {
-                DEBUG("Selected right\n");
+                // Send data to right neighbour
                 sha1_t right_key;
                 hash_addr(&right_addr, right_key);
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, right_key, host_key,
@@ -426,18 +420,15 @@ int main(int argc, char **argv) {
                 sendall(right, sendbuf, packetlen, 0);
                 close(right);
                 right = -1;
-            } else {
-                die("error");
             }
-            
         }
     }
 
+    // Cleanup
     close(listensock);
     close(servsock);
     free(sendbuf);
     free(recvbuf);
     
-
     return 0;
 }
