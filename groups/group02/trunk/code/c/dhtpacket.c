@@ -69,7 +69,7 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
         offset += sizeof(uint16_t);
         port = ntohs(port);
         snprintf(right->port, 5, "%d", port);
-        strcpy(right->addr, (char *) payload+sizeof(uint16_t));
+        strcpy(right->addr, (char *) payload+offset);
     }
     return 0;
 }

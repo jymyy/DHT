@@ -49,7 +49,7 @@ int create_listen_socket(char *port) {
 
 int main(int argc, char **argv) {
     if (argc != 5) {
-        die("give host port, server address and port as argument");
+        die("give host and server port and address as argument");
     }
 
     char *host_address = argv[1];
@@ -181,7 +181,6 @@ int main(int argc, char **argv) {
 		} else if (FD_ISSET(cmdsock, &rfds)) {
             // TODO Command socket for communicating with UI.
 			// Currently program terminates if it receives q from stdin.
-			DEBUG("Selected cmdsock\n");
 			read(cmdsock, recvbuf, MAX_PACKET_SIZE);
             if (recvbuf[0] == 'q') {
                 DEBUG("Terminating\n");
@@ -254,13 +253,11 @@ int main(int argc, char **argv) {
                         die(gai_strerror(status));
                     }
 					if ((tempfd = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
-						fprintf(stderr, "Socket creation failed\n");
-						continue;
+						die("Socket creation failed\n");
 					}
 					if ((status = connect(tempfd, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
-						fprintf(stderr, "Connecting failed\n");
+						die("Connecting failed\n");
 						close(tempfd);
-						continue;
 					}
                     
                     // Handshake with new node
@@ -326,6 +323,7 @@ int main(int argc, char **argv) {
                     if ((status = connect(right, right_info->ai_addr, right_info->ai_addrlen)) == -1) {
                         die(strerror(errno));
                     }
+
 
                     // Handshake with right
                     DEBUG("Handshaking with %d... ", right);
