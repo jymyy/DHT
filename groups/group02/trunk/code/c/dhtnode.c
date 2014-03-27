@@ -71,7 +71,8 @@ int main(int argc, char **argv) {
 
     fd_set rfds;
     fd_set wfds;
-    int cmdsock = -1;
+    fd_set cfds;
+    int cmdsock = fileno(stdin);
 	int servsock = -1;
     int listensock = create_listen_socket(host_port);
 
@@ -145,20 +146,13 @@ int main(int argc, char **argv) {
 	sendall(servsock, sendbuf, packetlen, 0);
 	free(pl);
     
-    int timer = 0;
-    while(running) {
-        timer++;
-        if (timer == 30) {
-            DEBUG("TIMEOUT\n");
-            packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
-                DHT_DEREGISTER_BEGIN, NULL, 0);
-            sendall(servsock, sendbuf, packetlen, 0);
-        }
 
+    while(running) {
         // Add sockets to listening pool
 		FD_ZERO(&rfds);
 		FD_SET(listensock, &rfds);
         FD_SET(servsock, &rfds);
+        FD_SET(cmdsock, &rfds);
         if (left != -1) {
             FD_SET(left, &rfds);
         } 
@@ -173,12 +167,22 @@ int main(int argc, char **argv) {
         // Let's hope 10 is high enough for numfds...
         struct timeval timeout;
         timeout.tv_sec = 1;
-		status = select(10, &rfds, NULL, NULL, &timeout);
+        status = select(10, &rfds, NULL, NULL, NULL);
+        
 
 		if (status == -1) {
 			die("select failed");
 		} else if (FD_ISSET(cmdsock, &rfds)) {
-            // TODO Command socket for communicating with UI
+            // TODO Command socket for communicating with UI.
+			// Currently program terminates if it receives q from stdin.
+			DEBUG("Selected cmdsock\n");
+			read(cmdsock, recvbuf, MAX_PACKET_SIZE);
+            if (recvbuf[0] == 'q') {
+                DEBUG("Terminating\n");
+                packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
+                    DHT_DEREGISTER_BEGIN, NULL, 0);
+                sendall(servsock, sendbuf, packetlen, 0);
+            }
 		} else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
             int tempfd = -1;
             if (FD_ISSET(left, &rfds)) {
