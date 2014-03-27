@@ -71,7 +71,6 @@ int main(int argc, char **argv) {
 
     fd_set rfds;
     fd_set wfds;
-    fd_set cfds;
     int cmdsock = fileno(stdin);
 	int servsock = -1;
     int listensock = create_listen_socket(host_port);
@@ -110,9 +109,18 @@ int main(int argc, char **argv) {
     // Handshake with server
     int CLIENT_SHAKE = htons(DHT_CLIENT_SHAKE);
     int SERVER_SHAKE = htons(DHT_SERVER_SHAKE);
+
+
     DEBUG("Handshaking with server... ");
+    sleep(1);	// Server doesn't accept handshake if sent immediately
     send(servsock, &CLIENT_SHAKE, 2, 0);
-    while (recv(servsock, recvbuf, 2, 0) != 2);
+    DEBUG("sent... ");
+    while (1) {
+    	recv(servsock, recvbuf, MAX_PACKET_SIZE, 0);
+    	if (recvbuf[0] == 'A' && recvbuf[1] == '?') {
+    		break;
+    	}
+    }
     DEBUG("ready\n");
 
     // Create keys and address structs
@@ -165,8 +173,6 @@ int main(int argc, char **argv) {
         memset(recvbuf, 0, MAX_PACKET_SIZE);
 
         // Let's hope 10 is high enough for numfds...
-        struct timeval timeout;
-        timeout.tv_sec = 1;
         status = select(10, &rfds, NULL, NULL, NULL);
         
 
