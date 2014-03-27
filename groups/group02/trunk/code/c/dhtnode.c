@@ -328,6 +328,7 @@ int main(int argc, char **argv) {
 
                 case DHT_DEREGISTER_DENY:
                     // TODO Inform user
+                    fprintf(stderr, "Leaving denied\n");
                     break;
                 default:
                     for (int i = 0; i < packetlen; ++i) {
