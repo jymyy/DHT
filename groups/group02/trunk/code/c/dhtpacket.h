@@ -14,6 +14,9 @@ int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t t
 */
 struct packet* unpack(byte *buf, int buflen);
 
+/*
+* Build TCP address(es) from payload.
+*/
 int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right);
 
 #endif

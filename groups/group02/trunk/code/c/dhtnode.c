@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <string.h>
 #include <netdb.h>
+#include <unistd.h>
 
 #include "dhtpackettypes.h"
 #include "dhtpacket.h"
@@ -47,10 +48,15 @@ int create_listen_socket(char *port) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        die("give host port as an argument");
+    if (argc != 5) {
+        die("give host port, server address and port as argument");
     }
-    char *host_port = argv[1];
+
+    char *host_address = argv[1];
+    char *host_port = argv[2];
+    char *server_address = argv[3];
+    char *server_port = argv[4];
+                
     int status = 0;
     int running = 1;
     
@@ -87,11 +93,11 @@ int main(int argc, char **argv) {
 	hosthints.ai_flags = AI_PASSIVE;
 
     // Connect to server
-	if ((status = getaddrinfo(HOST_ADDR, host_port, &hosthints, &hostinfo)) != 0) {
+	if ((status = getaddrinfo(host_address, host_port, &hosthints, &hostinfo)) != 0) {
         die(gai_strerror(status));
     }
 
-    if ((status = getaddrinfo(SERVER_ADDR, SERVER_PORT, &servhints, &servinfo)) != 0) {
+    if ((status = getaddrinfo(server_address, server_port, &servhints, &servinfo)) != 0) {
         die(gai_strerror(status));
     }
 	
@@ -119,8 +125,9 @@ int main(int argc, char **argv) {
     struct sockaddr_in *sb = (struct sockaddr_in *) servinfo->ai_addr;
     char serv_ip4[INET_ADDRSTRLEN]; 
     inet_ntop(AF_INET, &(sb->sin_addr), serv_ip4, INET_ADDRSTRLEN);
-    struct tcp_addr serv_addr = {.port = SERVER_PORT};
+    struct tcp_addr serv_addr;
     strcpy(serv_addr.addr, serv_ip4);
+    strcpy(serv_addr.port, server_port);
 
     hash_addr(&host_addr, host_key);
     hash_addr(&serv_addr, serv_key);
