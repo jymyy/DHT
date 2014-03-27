@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     int running = 1;
     
     // Connection state
-    int ACKS_RECEIVED = 0;
+    int acks_received = 0;
     int left = -1;  // left neighbour socket
     int right = -1; // right neighbour socket
     struct tcp_addr left_addr;
@@ -136,8 +136,15 @@ int main(int argc, char **argv) {
 	sendall(servsock, sendbuf, packetlen, 0);
 	free(pl);
     
-
+    int timer = 0;
     while(running) {
+        timer++;
+        if (timer == 30) {
+            DEBUG("TIMEOUT\n");
+            packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
+                DHT_DEREGISTER_BEGIN, NULL, 0);
+            sendall(servsock, sendbuf, packetlen, 0);
+        }
         // Add appropriate sockets to listening pool
 		FD_ZERO(&rfds);
 		FD_SET(listensock, &rfds);
@@ -154,7 +161,9 @@ int main(int argc, char **argv) {
         memset(recvbuf, 0, MAX_PACKET_SIZE);
 
         // Let's hope 20 is high enough for numfds...
-		status = select(20, &rfds, NULL, NULL, NULL);
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+		status = select(10, &rfds, NULL, NULL, &timeout);
 
 		if (status == -1) {
 			die("select failed");
@@ -196,10 +205,10 @@ int main(int argc, char **argv) {
                     break;
                 case DHT_REGISTER_ACK:
                     // Received data from neighbour (connecting)
-                    ACKS_RECEIVED++;
+                    acks_received++;
                     close(tempfd);
 
-                    if (ACKS_RECEIVED == 2) {
+                    if (acks_received == 2) {
                         packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
                             DHT_REGISTER_DONE, NULL, 0);
                         sendall(servsock, sendbuf, packetlen, 0);
@@ -290,6 +299,11 @@ int main(int argc, char **argv) {
                         die(strerror(errno));
                     }
 
+                    DEBUG("Handshaking with %d... ", left);
+                    send(left, &CLIENT_SHAKE, 2, 0);
+                    while (recv(left, recvbuf, MAX_PACKET_SIZE, 0) != 2);
+                    DEBUG("ready\n");
+
                     struct addrinfo right_hints, *right_info;
                     memset(&right_hints, 0, sizeof(struct addrinfo));
                     right_hints.ai_family = AF_INET;
@@ -304,6 +318,10 @@ int main(int argc, char **argv) {
                         die(strerror(errno));
                     }
 
+                    DEBUG("Handshaking with %d... ", right);
+                    send(right, &CLIENT_SHAKE, 2, 0);
+                    while (recv(right, recvbuf, MAX_PACKET_SIZE, 0) != 2);
+                    DEBUG("ready\n");
 
                     running = 0;
                     break;
@@ -349,47 +367,64 @@ int main(int argc, char **argv) {
 
     
     int disconnecting = 1;
+    int deregs_received = 0;
+    DEBUG("DISCONNECTING\n");
     while (disconnecting) {
         FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
         FD_SET(servsock, &rfds);
         if (left != -1) {
-             FD_SET(left, &wfds);
+            DEBUG("Setting left %d\n", left);
+            FD_SET(left, &wfds);
         } 
         if (right != -1) {
-             FD_SET(right, &wfds);
+            DEBUG("Setting right %d\n", right);
+            FD_SET(right, &wfds);
         }
-        memset(&sendbuf, 0, MAX_PACKET_SIZE);
-        memset(&recvbuf, 0, MAX_PACKET_SIZE);
+        memset(sendbuf, 0, MAX_PACKET_SIZE);
+        memset(recvbuf, 0, MAX_PACKET_SIZE);
 
-        status = select(listensock + 1, &rfds, NULL, NULL, NULL);
+        DEBUG("Selecting... ");
+        status = select(10, &rfds, &wfds, NULL, NULL);
+        DEBUG("ready\n");
 
         if (status == -1) {
             die("select failed");
         } else if (FD_ISSET(servsock, &rfds)) {
+            DEBUG("Selected server\n");
             packetlen = recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_DEREGISTER_DONE:
-                    disconnecting = 0;
+                    // Simply leave after receiving confirmations from
+                    // both neighbours
+                    deregs_received++;
+                    if (deregs_received == 2) {
+                        disconnecting = 0;
+                    }
                     break;
                 default:
                     die("invalid packet type");
             }
         } else if (FD_ISSET(left, &wfds) || FD_ISSET(right, &wfds)) {
             if (FD_ISSET(left, &wfds)) {
+                DEBUG("Selected left\n");
                 sha1_t left_key;
                 hash_addr(&left_addr, left_key);
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, left_key, host_key,
                     DHT_DEREGISTER_ACK, NULL, 0);
                 sendall(left, sendbuf, packetlen, 0);
                 close(left);
+                left = -1;
             } else if (FD_ISSET(right, &wfds)) {
+                DEBUG("Selected right\n");
                 sha1_t right_key;
                 hash_addr(&right_addr, right_key);
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, right_key, host_key,
                     DHT_DEREGISTER_ACK, NULL, 0);
                 sendall(right, sendbuf, packetlen, 0);
                 close(right);
+                right = -1;
             } else {
                 die("error");
             }
