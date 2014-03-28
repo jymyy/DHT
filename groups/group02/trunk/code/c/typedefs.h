@@ -30,8 +30,14 @@
 #define PL_LEN_OFFSET 42
 #define PAYLOAD_OFFSET 44
 
-#define DEBUG_ON 1
-#define DEBUG(...) do { if (DEBUG_ON) fprintf(stderr, __VA_ARGS__); } while (0)
+
+#ifndef NDEBUG
+#define DEBUG(...) do {fprintf(stderr, __VA_ARGS__); } while (0)
+#else
+#define DEBUG(...) 
+#endif
+
+// if (DEBUG_ON)
 
 typedef unsigned char byte;
 
