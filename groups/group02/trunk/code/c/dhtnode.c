@@ -274,6 +274,7 @@ int main(int argc, char **argv) {
                         DHT_REGISTER_ACK, NULL, 0);
                     sendall(tempfd, sendbuf, packetlen, 0);
                     close(tempfd);
+                    freeaddrinfo(nb_info);
                     break;
                 case DHT_REGISTER_DONE:
                     // TODO Forget data sent to new neighbour
@@ -412,6 +413,8 @@ int main(int argc, char **argv) {
                     if (deregs_received == 2) {
                         disconnecting = 0;
                     }
+                    free(packet->payload);
+                    free(packet);
                     break;
                 default:
                     die("invalid packet type");
