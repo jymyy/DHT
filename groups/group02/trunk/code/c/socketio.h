@@ -12,4 +12,14 @@ Receive data until a complete packet is received and return length of received p
 */
 int recvall(int socket, byte *recvbuf, int bufsize, int flags);
 
+/*
+Send handshake and wait for response.
+*/
+int init_hs(int socket);
+
+/*
+Wait for handshake and send response.
+*/
+int wait_hs(int socket);
+
 #endif

@@ -1,6 +1,7 @@
+#include <sys/socket.h>
 #include "typedefs.h"
 #include "socketio.h"
-#include <sys/socket.h>
+#include "dhtpackettypes.h"
 
 /*
 Send data until all data is sent and return length of sent data
@@ -53,4 +54,32 @@ int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
 	return bytes_total;
 }
 
+/*
+Initiate handshaking sequence i.e. send handshake and wait for response.
+*/
+int init_hs(int socket) {
+	uint16_t client_shake = htons(DHT_CLIENT_SHAKE);
+    uint16_t server_shake = htons(DHT_SERVER_SHAKE);
+    uint16_t buf = 0;
+    send(socket, &client_shake, 2, 0);
+    while (buf != server_shake) {
+    	recv(socket, &buf, 2, 0);
+    }
+    return 0;
+
+}
+
+/*
+Wait for handshake and send response.
+*/
+int wait_hs(int socket) {
+	uint16_t client_shake = htons(DHT_CLIENT_SHAKE);
+    uint16_t server_shake = htons(DHT_SERVER_SHAKE);
+    uint16_t buf = 0;
+    while (buf != client_shake) {
+    	recv(socket, &buf, 2, 0);
+    }
+    send(socket, &server_shake, 2, 0);
+    return 0;
+}
 

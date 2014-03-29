@@ -107,20 +107,9 @@ int main(int argc, char **argv) {
     }
 
     // Handshake with server
-    int CLIENT_SHAKE = htons(DHT_CLIENT_SHAKE);
-    int SERVER_SHAKE = htons(DHT_SERVER_SHAKE);
-
-
     DEBUG("Handshaking with server... ");
     sleep(1);	// Server doesn't accept handshake if sent immediately
-    send(servsock, &CLIENT_SHAKE, 2, 0);
-    DEBUG("sent... ");
-    while (1) {
-    	recv(servsock, recvbuf, MAX_PACKET_SIZE, 0);
-    	if (recvbuf[0] == 'A' && recvbuf[1] == '?') {
-    		break;
-    	}
-    }
+    init_hs(servsock);
     DEBUG("ready\n");
 
     // Create keys and address structs
@@ -183,6 +172,7 @@ int main(int argc, char **argv) {
 			// Currently program terminates if it receives q from stdin.
 			read(cmdsock, recvbuf, MAX_PACKET_SIZE);
             if (recvbuf[0] == 'q') {
+                DEBUG("Disconnecting...\n");
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
                     DHT_DEREGISTER_BEGIN, NULL, 0);
                 sendall(servsock, sendbuf, packetlen, 0);
@@ -263,8 +253,7 @@ int main(int argc, char **argv) {
                     sha1_t nb_key;
                     hash_addr(&nb_addr, nb_key);
                     DEBUG("Handshaking with %d... ", tempfd);
-                    send(tempfd, &CLIENT_SHAKE, 2, 0);
-                    while (recv(tempfd, recvbuf, MAX_PACKET_SIZE, 0) != 2);
+                    init_hs(tempfd);
                     DEBUG("ready\n");
 
                     // TODO Send data
@@ -305,8 +294,7 @@ int main(int argc, char **argv) {
 
                     // Handshake with left
                     DEBUG("Handshaking with %d... ", left);
-                    send(left, &CLIENT_SHAKE, 2, 0);
-                    while (recv(left, recvbuf, MAX_PACKET_SIZE, 0) != 2);
+                    init_hs(left);
                     DEBUG("ready\n");
 
                     // Connect to right neighbour
@@ -327,8 +315,7 @@ int main(int argc, char **argv) {
 
                     // Handshake with right
                     DEBUG("Handshaking with %d... ", right);
-                    send(right, &CLIENT_SHAKE, 2, 0);
-                    while (recv(right, recvbuf, MAX_PACKET_SIZE, 0) != 2);
+                    init_hs(right);
                     DEBUG("ready\n");
 
                     // Cleanup
@@ -337,8 +324,8 @@ int main(int argc, char **argv) {
                     running = 0;
                     break;
                 case DHT_DEREGISTER_DENY:
-                    // Leaving attempt denied
-                    fprintf(stderr, "Leaving denied\n");
+                    // Disconnection attempt denied
+                    fprintf(stderr, "Disconnecting denied\n");
                     break;
                 default:
                     // Invalid packet type, dump packet and die
@@ -368,13 +355,8 @@ int main(int argc, char **argv) {
                 die("error accepting new connection");
             }
             DEBUG("Handshaking with %d... ", tempfd);
-            recv(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
-            if (recvbuf[0] == 'A' && recvbuf[1] == '!') {
-                send(tempfd, &SERVER_SHAKE, 2, 0);
-                DEBUG("ready\n");
-            } else {
-                die("invalid handshake");
-            }
+            wait_hs(tempfd);
+            DEBUG("ready\n");
         }
     }
 
@@ -383,7 +365,6 @@ int main(int argc, char **argv) {
     // neighbours and wait confirmation from server.
     int disconnecting = 1;
     int deregs_received = 0;
-    DEBUG("DISCONNECTING\n");
     while (disconnecting) {
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
