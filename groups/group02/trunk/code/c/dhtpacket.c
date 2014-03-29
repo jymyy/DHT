@@ -60,7 +60,7 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
     memcpy(&port, payload, sizeof(uint16_t));
     offset += sizeof(uint16_t);
     port = ntohs(port);
-    snprintf(left->port, 5, "%d", port);
+    snprintf(left->port, 6, "%d", port);
     strcpy(left->addr, (char *) payload+offset);
     
     if (right != NULL) {
@@ -68,7 +68,7 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
         memcpy(&port, payload+offset, sizeof(uint16_t));
         offset += sizeof(uint16_t);
         port = ntohs(port);
-        snprintf(right->port, 5, "%d", port);
+        snprintf(right->port, 6, "%d", port);
         strcpy(right->addr, (char *) payload+offset);
     }
     return 0;

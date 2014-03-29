@@ -32,19 +32,17 @@
 
 
 #ifndef NDEBUG
-#define DEBUG(...) do {fprintf(stderr, __VA_ARGS__); } while (0)
+#define DEBUG(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define DEBUG(...) 
 #endif
-
-// if (DEBUG_ON)
 
 typedef unsigned char byte;
 
 typedef unsigned char sha1_t[SHA_DIGEST_LENGTH];
 
 struct tcp_addr {
-    char port[5];
+    char port[6];
     char addr[MAX_ADDR_LEN];
 };
 

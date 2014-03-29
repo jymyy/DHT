@@ -183,7 +183,6 @@ int main(int argc, char **argv) {
 			// Currently program terminates if it receives q from stdin.
 			read(cmdsock, recvbuf, MAX_PACKET_SIZE);
             if (recvbuf[0] == 'q') {
-                DEBUG("Terminating\n");
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
                     DHT_DEREGISTER_BEGIN, NULL, 0);
                 sendall(servsock, sendbuf, packetlen, 0);
