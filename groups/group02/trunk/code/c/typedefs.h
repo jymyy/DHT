@@ -16,10 +16,6 @@
 
 #define MAX_CONNECTIONS 2
 #define MAX_ADDR_LEN 64
-#define HOST_ADDR "localhost"
-#define HOST_PORT "9876"
-#define SERVER_ADDR "localhost"
-#define SERVER_PORT "1234"
 
 // Offset values for packing and unpacking
 #define MAX_PACKET_SIZE 65579 // 65535 + 2 + 2 + 20 + 20
