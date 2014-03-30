@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 
     fd_set rfds;
     fd_set wfds;
-    int cmdsock = fileno(stdin);
+    int cmdsock = fileno(stdin);    // TODO Connect this to GUI
 	int servsock = -1;
     int listensock = create_listen_socket(host_port);
 
@@ -143,7 +143,8 @@ int main(int argc, char **argv) {
 	sendall(servsock, sendbuf, packetlen, 0);
 	free(pl);
     
-
+    // Start main loop (connection sequence isn't actually
+    // finished at this point)
     while(running) {
         // Add sockets to listening pool
 		FD_ZERO(&rfds);
@@ -168,7 +169,6 @@ int main(int argc, char **argv) {
 		if (status == -1) {
 			die("select failed");
 		} else if (FD_ISSET(cmdsock, &rfds)) {
-            // TODO Command socket for communicating with UI.
 			// Currently program terminates if it receives q from stdin.
 			read(cmdsock, recvbuf, MAX_PACKET_SIZE);
             if (recvbuf[0] == 'q') {
@@ -312,7 +312,6 @@ int main(int argc, char **argv) {
                         die(strerror(errno));
                     }
 
-
                     // Handshake with right
                     DEBUG("Handshaking with %d... ", right);
                     init_hs(right);
@@ -328,11 +327,12 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "Disconnecting denied\n");
                     break;
                 default:
-                    // Invalid packet type, dump packet and die
+                    // Invalid packet type, dump packet if debugging and die
+                    DEBUG("PACKET DUMP\n");
                     for (int i = 0; i < packetlen; ++i) {
-                        fprintf(stderr, "%x ", recvbuf[i]);
+                        DEBUG("%x ", recvbuf[i]);
                     }
-                    fprintf(stderr, "\n");
+                    DEBUG("\n");
                     die("invalid packet type");
             }
             free(packet->payload);
