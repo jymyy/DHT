@@ -19,6 +19,12 @@ struct packet* unpack(byte *buf, int buflen);
 */
 int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right);
 
+/*
+ *Function for turning the packettypes to
+ *plain text.
+ */
+char* packet_type(int type);
+
 #endif
 
 

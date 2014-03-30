@@ -15,7 +15,7 @@ int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t t
         memcpy(buf+PAYLOAD_OFFSET, payload, pl_len);
     }
     
-    DEBUG("Packing type %d... ready\n", type);
+    DEBUG("Packing type %s... ready\n", packet_type(type));
     return PACKET_HEADER_LEN + pl_len;
 }
 
@@ -46,7 +46,7 @@ struct packet* unpack(byte *buf, int packetlen) {
         packet->payload = NULL;
     }
 
-    DEBUG("Unpacking type %d... ready\n", packet->type);
+    DEBUG("Unpacking type %s... ready\n", packet_type(packet->type));
     return packet;  
     
 }
@@ -72,4 +72,69 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
         strcpy(right->addr, (char *) payload+offset);
     }
     return 0;
+}
+
+/*
+ *Function for turning the packettypes to
+ *plain text.
+ */
+char* packet_type(int type) {
+    
+    switch (type) {
+        case 1:
+            return "DHT_REGISTER_BEGIN";
+        case 2:
+            return "DHT_REGISTER_ACK";
+        case 3:
+            return "DHT_REGISTER_FAKE_ACK";
+        case 4:
+            return "DHT_REGISTER_DONE";
+            
+            
+        case 0x4121:
+            return "DHT_CLIENT_SHAKE";
+        case 0x413f:
+            return "DHT_SERVER_SHAKE";
+            
+            
+        case 11:
+            return "DHT_DEREGISTER_BEGIN";
+        case 12:
+            return "DHT_DEREGISTER_ACK";
+        case 13:
+            return "DHT_DEREGISTER_DONE";
+        case 14:
+            return "DHT_DEREGISTER_DENY";
+            
+            
+        case 21:
+            return "DHT_GET_DATA";
+        case 22:
+            return "DHT_PUT_DATA";
+        case 23:
+            return "DHT_DUMP_DATA";
+        case 24:
+            return "DHT_PUT_DATA_ACK";
+        case 25:
+            return "DHT_DUMP_DATA_ACK";
+        case 26:
+            return "DHT_SEND_DATA";
+        case 27:
+            return "DHT_TRANSFER_DATA";
+        case 28:
+            return "DHT_NO_DATA";
+            
+            
+        case 31:
+            return "DHT_ACQUIRE_REQUEST";
+        case 32:
+            return "DHT_ACQUIRE_ACK";
+        case 33:
+            return "DHT_RELEASE_REQUEST";
+        case 34:
+            return "DHT_RELEASE_ACK";
+            
+        default:
+            return "UNKNOWN_PACKET_TYPE";
+    }
 }
