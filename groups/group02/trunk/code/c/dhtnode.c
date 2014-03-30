@@ -107,10 +107,8 @@ int main(int argc, char **argv) {
     }
 
     // Handshake with server
-    DEBUG("Handshaking with server... ");
     sleep(1);	// Server doesn't accept handshake if sent immediately
     init_hs(servsock);
-    DEBUG("ready\n");
 
     // Create keys and address structs
     struct sockaddr_in *sa = (struct sockaddr_in *) hostinfo->ai_addr;
@@ -252,9 +250,7 @@ int main(int argc, char **argv) {
                     // Handshake with new node
                     sha1_t nb_key;
                     hash_addr(&nb_addr, nb_key);
-                    DEBUG("Handshaking with %d... ", tempfd);
                     init_hs(tempfd);
-                    DEBUG("ready\n");
 
                     // TODO Send data
                     // Send ACK to new node to inform that all data is sent
@@ -293,9 +289,7 @@ int main(int argc, char **argv) {
                     }
 
                     // Handshake with left
-                    DEBUG("Handshaking with %d... ", left);
                     init_hs(left);
-                    DEBUG("ready\n");
 
                     // Connect to right neighbour
                     struct addrinfo right_hints, *right_info;
@@ -313,9 +307,7 @@ int main(int argc, char **argv) {
                     }
 
                     // Handshake with right
-                    DEBUG("Handshaking with %d... ", right);
                     init_hs(right);
-                    DEBUG("ready\n");
 
                     // Cleanup
                     freeaddrinfo(left_info);
@@ -354,9 +346,7 @@ int main(int argc, char **argv) {
             } else {
                 die("error accepting new connection");
             }
-            DEBUG("Handshaking with %d... ", tempfd);
             wait_hs(tempfd);
-            DEBUG("ready\n");
         }
     }
 

@@ -58,6 +58,7 @@ int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
 Initiate handshaking sequence i.e. send handshake and wait for response.
 */
 int init_hs(int socket) {
+	DEBUG("Handshaking with %d... ", socket);
 	uint16_t client_shake = htons(DHT_CLIENT_SHAKE);
     uint16_t server_shake = htons(DHT_SERVER_SHAKE);
     uint16_t buf = 0;
@@ -65,6 +66,7 @@ int init_hs(int socket) {
     while (buf != server_shake) {
     	recv(socket, &buf, 2, 0);
     }
+    DEBUG("ready\n");
     return 0;
 
 }
@@ -73,6 +75,7 @@ int init_hs(int socket) {
 Wait for handshake and send response.
 */
 int wait_hs(int socket) {
+	DEBUG("Handshaking with %d... ", socket);
 	uint16_t client_shake = htons(DHT_CLIENT_SHAKE);
     uint16_t server_shake = htons(DHT_SERVER_SHAKE);
     uint16_t buf = 0;
@@ -80,6 +83,7 @@ int wait_hs(int socket) {
     	recv(socket, &buf, 2, 0);
     }
     send(socket, &server_shake, 2, 0);
+    DEBUG("ready\n");
     return 0;
 }
 
