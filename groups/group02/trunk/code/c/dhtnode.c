@@ -175,6 +175,29 @@ int main(int argc, char **argv) {
                     DHT_DEREGISTER_BEGIN, NULL, 0);
                 sendall(servsock, sendbuf, packetlen, 0);
             }
+            /*
+            recvcmd(cmdsock, recvbuf, MAX_PACKET_SIZE);
+            cmd = unpack_cmd(recvbuf);
+            switch (cmd->type) {
+                case PUT:
+                    // Get payload from cmd, create packet and send to server
+                    break;
+                case GET:
+                    // Send request to server
+                    break;
+                case DUMP:
+                    // Send request to server
+                    break;
+                case TERMINATE:
+                    DEBUG("Disconnecting...\n");
+                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
+                        DHT_DEREGISTER_BEGIN, NULL, 0);
+                    sendall(servsock, sendbuf, packetlen, 0);
+                    break;
+                default:
+                    die("invalid command");
+            }
+            */
 		} else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
             int tempfd = -1;
             if (FD_ISSET(left, &rfds)) {
@@ -189,6 +212,12 @@ int main(int argc, char **argv) {
             switch (packet->type) {
                 case DHT_TRANSFER_DATA:
                     // TODO: Implement data structure and insert data there
+                    break;
+                case DHT_SEND_DATA:
+                    // TODO: Send payload to Java
+                    break;
+                case DHT_NO_DATA:
+                    // TODO: Inform Java that no data was found
                     break;
                 case DHT_REGISTER_ACK:
                     // Received all data from neighbour, send DONE to server if
@@ -271,6 +300,7 @@ int main(int argc, char **argv) {
                 	break;
                 case DHT_DEREGISTER_ACK:
                     // Server has responded to our attempt to leave, create connections to both neighbours
+                    // Inform Java that disconnection sequence has begun.
                     build_tcp_addr(packet->payload, &left_addr, &right_addr);
 
                     // Connect to left neighbour
@@ -316,7 +346,24 @@ int main(int argc, char **argv) {
                     break;
                 case DHT_DEREGISTER_DENY:
                     // Disconnection attempt denied
+                    // TODO: Inform Java
                     fprintf(stderr, "Disconnecting denied\n");
+                    break;
+                case DHT_GET_DATA:
+                    // Some node requested data
+                    // TODO: Open connection to requesting node and send data
+                    break;
+                case DHT_PUT_DATA_ACK:
+                    // Data added succesfully
+                    // TODO: Send OK to Java
+                    break;
+                case DHT_DUMP_DATA:
+                    // Some node requested data removal
+                    // TODO: Remove data (if exists) and send ACK to server
+                    break;
+                case DHT_DUMP_DATA_ACK:
+                    // Our request to remove data was succesful
+                    // TODO: Send OK to Java
                     break;
                 default:
                     // Invalid packet type, dump packet if debugging and die

@@ -55,6 +55,13 @@ int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
 }
 
 /*
+Receive command from Java
+*/
+int recvcmd(int socket, byte *recvbuf, int bufsize, int flags) {
+    return 0;
+}
+
+/*
 Initiate handshaking sequence i.e. send handshake and wait for response.
 */
 int init_hs(int socket) {
