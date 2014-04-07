@@ -1,0 +1,97 @@
+## Käyttöliittymä
+- Lisäys
+    * Valitse tiedosto
+    * Valitse nimi
+- Nouto
+    * Anna noudettava tiedoston nimi
+    * Määrittele sijainti ja nimi millä tallennetaan
+        - Oletusnimenä nimi jolla lisättiin
+- Poisto
+    * Anna poistettavan tiedoston nimi
+
+## Tiedon tallennus
+- Kaikki solmussa säilytettävä tieto yhdessä kansiossa
+    * Käyttäjä voinee määritellä sijainnin
+- Tallennettujen tiedoston nimenä pelkkä hash
+- C:llä oltava pääsy säilytettäviin tiedostoihin
+- Erotellaan siis DHT:sta noudetut tiedostot ja nodessa (C) säilytettävä data
+
+## C-Java -kommunikaatio
+- Käskyt
+    * Käskyn tyyppi
+    * Tiedostonimen pituus
+    * Payloadin pituus
+    * C kuittaa OK tai error
+- Tiedoston lisäys
+    * Tiedoston nimi
+    * Payload
+- Tiedoston poisto
+    * Tiedoston nimi
+- Tiedoston haku
+    * Tiedoston nimi
+    * C palauttaa payloadin
+- Disconnect
+    * C kertoo Javalle miten kävi
+    * Jos päästään pois, progress bar datan siirtoo liittyen
+- Directory
+    * Päivitys "joka tapahtuman jälkeen"
+- Java käynnistää C:n ja antaa tälle argumenttina tarvittavat tiedot
+    * Tallennetaan vanhat/asetustiedostot
+
+## Lisäys
+1. Käyttäjä määritellyt lisättävän tiedoston ja nimen tälle
+2. Java pilkkoo tiedoston ja lisää payloadien headerit
+3. Java muodostaa tiedostonimet (filename-PARTXXX) ja siirtää payloadit+nimet C:lle yksitellen
+4. C lisää payloadit verkkoon
+5. C on tyhmä
+
+## Nouto
+1. Käyttäjä määrittää noudettava tiedoston nimen
+2. Java muodosta nimestä avaimen (filename-PART001) ja pyytää C:tä noutamaan ko. payloadin
+3. C vastaanottaa payloadin ja siirtää Javalle
+4. Java tutkii montako payloadia tiedostoon kuuluu ja pyytää C:ltä loput
+5. C on tyhmä
+
+## Payload
+- Varsinaisten datapakettien payloadin alkuun esim 4 tavua (2*uint16_t)
+    * 2 tavua pakettien määrään
+    * 2 tavua paketin numeroon
+    * Tämä ei välttämättä tarpeellista, jos luotetaan siihen että ongelmia ei esiinny
+    * filename-PART001
+- Tiedoston nimi
+    * Nimen pituus 2 tavua
+    * Nimi (max N merkkiä)
+
+## Advanced features
+- Locking
+    * Tutkitaan asiaa (lukkopyyntö ennen jokaista varsinaista pyyntöä?)
+- Multi-block files
+    * Sisäänrakennettu
+- Progress bar
+    * Pakettien mukaan edistyminen
+- Directory
+    * Standardiniminen paketti, jossa lista tiedostonimistä
+
+## Komponentit
+- C
+    * Tietorakenne avaimien hallintaan
+    * Tiedoston tallennus ja lataus levyltä
+    * Kommunikaatio Javan kanssa
+        - Oma pakettimuoto
+- Java
+    * Kommunikaatio C:n kanssa
+    * Käyttöliittymä
+    * Tiedontallennusprotokolla (ydin)
+
+## Käyttöliittymä
+- Käyttäjälle kerrotaan tapahtumien eteneminen pakettitasolla
+- Jokaisen komennon jälkeen joko viesti OK tai error ja kuvaus
+- Esim tiedostonsiirrossa mahdollisuus yrittää uudestaan (paketti uudestaan) tai keskeytetään tapahtuma
+- Put
+    * Käyttäjä valitsee tiedoston ja nimen
+- Get
+    * Käyttäjä valitsee tiedostonimen, tallenuspaikan ja -nimen
+- Dump
+    * Käyttäjä valitsee tiedostonimen
+- Ilman directorya kaikki tiedostojen valinnat tekstikenttänä
+- Logi-ikkuna, mihin tulostetaan viestit sekä C:ltä että Javalta
