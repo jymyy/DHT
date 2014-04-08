@@ -12,11 +12,28 @@ int add_key(struct keyring *ring, sha1_t key) {
     struct keyring *new = malloc(sizeof(struct keyring));
     strncpy(new->key, key, KEY_LEN);
 
+    struct keyring *prec;
+    struct keyring *succ;
+    find_position(ring, key, &prec, &succ);
+    if (strncmp(key, prec->key, KEY_LEN) == 0) {
+        DEBUG("Tried to add duplicate key: %s\n", key);
+        return 1;
+    } else {
+        new->previous = prec;
+        new->next = succ;
+        prec->next = new;
+        succ->previous = new;
+        return 0;
+    }
+
+}
+
+int del_key(struct keyring *ring, sha1_t key);
+
+int find_position(struct keyring *ring, sha1_t key, struct keyring **prec, struct keyring **succ) {
     if (ring->next == NULL) {
-        new->next = ring;
-        new->previous = ring;
-        ring->next = new;
-        ring->previous = new;
+        *prec = ring;
+        *succ = ring;
     } else {
         // First the direction of traversal is determined by comparing
         // the new key to the initialization key. After that the ring is
@@ -25,61 +42,42 @@ int add_key(struct keyring *ring, sha1_t key) {
         // where the new key is lowest or highest in the whole ring.
         int ord = strncmp(key, ring->key, KEY_LEN);
         if (ord == 0) {
-            fprintf(stderr, "Tried to add key equal to initialization key.\n");
-            free(new);
-            return 1;
+            *prec = ring;
+            *succ = ring->next;
         } else if (ord < 0) {
             struct keyring *cur = ring;
             struct keyring *prev = ring->previous;
             int ord_cur = ord;
             int ord_prev = strncmp(key, prev->key, KEY_LEN);
             int ord_diff = strncmp(prev->key, cur->key, KEY_LEN);
-            while (ord_prev < 0 && ord_cur < 0 && ord_diff < 0) {
+            while (ord_prev < 0 && ord_cur <= 0 && ord_diff < 0) {
                 cur = prev;
                 prev = prev->previous;
                 ord_cur = strncmp(key, cur->key, KEY_LEN);
                 ord_prev = strncmp(key, prev->key, KEY_LEN);
                 ord_diff = strncmp(prev->key, cur->key, KEY_LEN);
             }
-            if (ord_cur == 0 || ord_prev == 0) {
-                fprintf(stderr, "Tried to add duplicate key %s\n", key);
-                free(new);
-                return 1;
-            }
-            new->next = cur;
-            new->previous = prev;
-            cur->previous = new;
-            prev->next = new;
-
+            *prec = prev;
+            *succ = cur;
         } else if (ord > 0) {
             struct keyring *cur = ring;
             struct keyring *next = ring->next;
             int ord_cur = ord;
             int ord_next = strncmp(key, next->key, KEY_LEN);
             int ord_diff = strncmp(next->key, cur->key, KEY_LEN);
-            while (0 < ord_next && 0 < ord_cur && 0 < ord_diff) {
+            while (0 <= ord_next && 0 < ord_cur && 0 < ord_diff) {
                 cur = next;
                 next = next->next;
                 ord_cur = strncmp(key, cur->key, KEY_LEN);
                 ord_next = strncmp(key, next->key, KEY_LEN);
                 ord_diff = strncmp(next->key, cur->key, KEY_LEN);
             }
-            if (ord_cur == 0 || ord_next == 0) {
-                fprintf(stderr, "Tried to add duplicate key %s\n", key);
-                free(new);
-                return 1;
-            }
-            new->next = next;
-            new->previous = cur;
-            cur->next = new;
-            next->previous = new;
+            *prec = cur;
+            *succ = next;
         }
     }
-    // DEBUG("Added %.*s between %.*s and %.*s\n", KEY_LEN, new->key, KEY_LEN, (new->previous)->key, KEY_LEN, (new->next)->key);
     return 0;
 }
-
-int get_key(struct keyring *ring, sha1_t key);
 
 struct keyring* slice(struct keyring *ring, sha1_t begin, sha1_t end);
 

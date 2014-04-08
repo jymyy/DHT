@@ -24,9 +24,16 @@ int add_key(struct keyring *ring, sha1_t key);
 
 /*
  * Delete a key from the ring. Return zero on success (not finding
- * the key is considered a success).
+ * the key is considered success).
  */
 int del_key(struct keyring *ring, sha1_t key);
+
+/*
+ * Find position of (arbitrary) key. Prec and succ are set to point preceding and
+ * succeeding items in the ring, respectively, when the ring is traversed
+ * clockwise.
+ */
+int find_position(struct keyring *ring, sha1_t key, struct keyring **prec, struct keyring **succ);
 
 /*
  * Remove an outer slice between begin and end. Return a pointer to the
