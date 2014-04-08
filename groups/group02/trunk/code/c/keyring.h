@@ -23,8 +23,8 @@ struct keyring* init_ring(sha1_t init_key);
 int add_key(struct keyring *ring, sha1_t key);
 
 /*
- * Delete a key from the ring. Return zero on success (not finding
- * the key is considered success).
+ * Delete a key from the ring. Return zero if key was found and
+ * deleted, nonzero otherwise.
  */
 int del_key(struct keyring *ring, sha1_t key);
 
@@ -45,7 +45,7 @@ struct keyring* slice(struct keyring *ring, sha1_t begin, sha1_t end);
  * Iterate the ring clockwise starting from first element and calling
  * iterfun with each key as argument. Iterfun must return zero on success.
  */
-void iterate(struct keyring *ring, int (*iterfun)(sha1_t key));
+int iterate(struct keyring *ring, int (*iterfun)(sha1_t key));
 
 /*
  * Free ring or slice. Return zero on success.
