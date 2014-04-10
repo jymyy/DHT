@@ -18,6 +18,7 @@
 #include "hash.h"
 
 void die(const char *reason) {
+    
     fprintf(stderr, "Fatal error: %s\n", reason);
     exit(1);
 }
@@ -49,7 +50,7 @@ int create_listen_socket(char *port) {
 
 int main(int argc, char **argv) {
     if (argc != 5) {
-        die("give host and server port and address as argument");
+        die("give host and server ports and addresses as argument");
     }
 
     char *host_address = argv[1];
