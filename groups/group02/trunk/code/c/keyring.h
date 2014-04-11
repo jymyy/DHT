@@ -29,17 +29,18 @@ int add_key(struct keyring *ring, sha1_t key);
 int del_key(struct keyring *ring, sha1_t key);
 
 /*
- * Find position of (arbitrary) key. Prec and succ are set to point preceding and
- * succeeding items in the ring, respectively, when the ring is traversed
- * clockwise.
+ * Find position of (arbitrary) key. The returned pointer points to the key
+ * or, if not found, the preceding key (when traversing clockwise). Return NULL
+ * if error.
  */
-int find_position(struct keyring *ring, sha1_t key, struct keyring **prec, struct keyring **succ);
+struct keyring* find_pos(struct keyring *ring, sha1_t key);
 
 /*
- * Remove an outer slice between begin and end. Return a pointer to the
- * beginning of the slice or NULL if no slice could be created.
+ * Remove an outer slice between begin and end, inclusive. Return a pointer to the
+ * beginning of the slice or NULL if no slice could be created. Initialization key
+ * is removed from the slice.
  */
-struct keyring* slice(struct keyring *ring, sha1_t begin, sha1_t end);
+struct keyring* slice_ring(struct keyring *ring, sha1_t begin_key, sha1_t end_key);
 
 /*
  * Iterate the ring clockwise starting from first element and calling

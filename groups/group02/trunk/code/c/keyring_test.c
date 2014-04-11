@@ -2,7 +2,7 @@
 #include "typedefs.h"
 
 int printfun(sha1_t key) {
-    fprintf("%s ", key);
+    fprintf(stderr, "%s ", key);
     return 0;
 }
 
@@ -16,35 +16,27 @@ int main(int argc, char **argv) {
     sha1_t m = "mmmmm";
     sha1_t x = "xxxxx";
 
-    struct keyring *ring = init_ring(x);
+    struct keyring *ring = init_ring(b);
     add_key(ring, c);
     add_key(ring, d);
     add_key(ring, f);
     add_key(ring, a);
-    add_key(ring, b);
+    add_key(ring, x);
     add_key(ring, m);
     add_key(ring, e);
 
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, f);
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, a);
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, d);
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, "ggggg");
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, b);
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, c);
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, m);
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, e);
-    iterate(ring, printfun); printf("\n");
-    del_key(ring, x);
+    printf("Initial ring\n");
     iterate(ring, printfun); printf("\n");
 
+    struct keyring *slice = slice_ring(ring, a, d);
+    printf("Ring after slicing\n");
+    iterate(ring, printfun); printf("\n");
+    printf("Slice\n");
+    iterate(slice, printfun); printf("\n");
+    printf("Free slice\n");
+    free_ring(slice);
+
+    printf("Free ring\n");
     free_ring(ring);
 
     return 0;
