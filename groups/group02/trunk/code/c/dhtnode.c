@@ -16,11 +16,6 @@
 #include "typedefs.h"
 #include "hash.h"
 
-void die(const char *reason) {
-    fprintf(stderr, "Fatal error: %s\n", reason);
-    exit(1);
-}
-
 int create_listen_socket(char *port) {
     int fd;
     int t;
@@ -33,22 +28,22 @@ int create_listen_socket(char *port) {
 
     fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd == -1)
-        die(strerror(errno));
+        DIE(strerror(errno));
 
     t = bind(fd, (struct sockaddr *)(&a), sizeof(struct sockaddr_in));
     if (t == -1)
-        die(strerror(errno));
+        DIE(strerror(errno));
 
     t = listen(fd, MAX_CONNECTIONS);
     if (t == -1)
-        die(strerror(errno));        
+        DIE(strerror(errno));        
 
     return fd;
 }
 
 int main(int argc, char **argv) {
     if (argc != 5) {
-        die("give host and server ports and addresses as argument");
+        DIE("give host and server ports and addresses as argument");
     }
 
     char *host_address = argv[1];
@@ -96,16 +91,16 @@ int main(int argc, char **argv) {
 
     // Connect to server
 	if ((status = getaddrinfo(host_address, host_port, &hosthints, &hostinfo)) != 0) {
-        die(gai_strerror(status));
+        DIE(gai_strerror(status));
     }
 
     if ((status = getaddrinfo(server_address, server_port, &servhints, &servinfo)) != 0) {
-        die(gai_strerror(status));
+        DIE(gai_strerror(status));
     }
 	
 	servsock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
 	if (connect(servsock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-        die("connection refused (is server running?)");
+        DIE("connection refused (is server running?)");
     }
 
     // Handshake with server
@@ -164,7 +159,7 @@ int main(int argc, char **argv) {
         status = select(10, &rfds, NULL, NULL, NULL);
 
 		if (status == -1) {
-			die("select failed");
+			DIE("select failed");
 		} else if (FD_ISSET(cmdsock, &rfds)) {
 			// Currently program terminates if it receives q from stdin.
 			read(cmdsock, recvbuf, MAX_PACKET_SIZE);
@@ -194,7 +189,7 @@ int main(int argc, char **argv) {
                     sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 default:
-                    die("invalid command");
+                    DIE("invalid command");
             }
             */
 		} else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
@@ -238,7 +233,7 @@ int main(int argc, char **argv) {
                     sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 default:
-                    die("invalid header");
+                    DIE("invalid header");
             }
             free(packet->payload);
             free(packet);
@@ -325,7 +320,7 @@ int main(int argc, char **argv) {
                         DEBUG("%x ", recvbuf[i]);
                     }
                     DEBUG("\n");
-                    die("invalid packet type");
+                    DIE("invalid packet type");
             }
             free(packet->payload);
             free(packet);
@@ -338,13 +333,13 @@ int main(int argc, char **argv) {
 
             if ((tempfd = accept(listensock, (struct sockaddr *)&tempaddr,
                         &addrlen)) == -1) {
-                die(strerror(errno));
+                DIE(strerror(errno));
             } else if (left == -1) {
                 left = tempfd;
             } else if (left != -1 && right == -1) {
                 right = tempfd;
             } else {
-                die("error accepting new connection");
+                DIE("error accepting new connection");
             }
             wait_hs(tempfd);
         }
@@ -371,7 +366,7 @@ int main(int argc, char **argv) {
         status = select(10, &rfds, &wfds, NULL, NULL);
 
         if (status == -1) {
-            die("select failed");
+            DIE("select failed");
         } else if (FD_ISSET(servsock, &rfds)) {
             packetlen = recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, packetlen);
@@ -387,7 +382,7 @@ int main(int argc, char **argv) {
                     free(packet);
                     break;
                 default:
-                    die("invalid packet type");
+                    DIE("invalid packet type");
             }
         } else if (FD_ISSET(left, &wfds) || FD_ISSET(right, &wfds)) {
             if (FD_ISSET(left, &wfds)) {

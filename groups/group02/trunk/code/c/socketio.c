@@ -29,6 +29,9 @@ int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
 	// Receive header
 	while (bytes_missing > 0) {
 		bytes_received = recv(socket, recvbuf+bytes_total, bytes_missing, flags);
+        if (bytes_received == 0) {
+            DIE("sender disconnected");
+        }
 		bytes_total += bytes_received;
 		bytes_missing -= bytes_received;
 	}
@@ -94,10 +97,10 @@ int open_conn(int *sock, struct tcp_addr *addr) {
         DIE(gai_strerror(status));
     }
     if ((*sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-        DIE("Socket creation failed\n");
+        DIE("Socket creation failed");
     }
     if ((status = connect(*sock, info->ai_addr, info->ai_addrlen)) == -1) {
-        DIE("Connecting socket failed\n");
+        DIE("Connecting socket failed");
         close(*sock);
     }
     freeaddrinfo(info);
