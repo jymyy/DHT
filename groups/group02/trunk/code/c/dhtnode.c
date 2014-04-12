@@ -1,19 +1,20 @@
-#include <sys/select.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
+#include <errno.h>
+#include <string.h>
 #include <unistd.h>
+#include <sys/select.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <errno.h>
-#include <string.h>
 #include <netdb.h>
 
+#include "typedefs.h"
 #include "dhtpackettypes.h"
 #include "dhtpacket.h"
 #include "socketio.h"
-#include "typedefs.h"
+#include "fileio.h"
 #include "hash.h"
 
 int create_listen_socket(char *port) {
@@ -50,6 +51,7 @@ int main(int argc, char **argv) {
     char *host_port = argv[2];
     char *server_address = argv[3];
     char *server_port = argv[4];
+    char *block_path = "blocks";    // TODO: Ask user for path
            
     // Status info     
     int status = 0;
@@ -74,37 +76,37 @@ int main(int argc, char **argv) {
     int right = -1; // right neighbour socket
 
     // Buffers for sending and receiving
-	byte *sendbuf = malloc(MAX_PACKET_SIZE);
-	byte *recvbuf = malloc(MAX_PACKET_SIZE);
+    byte *sendbuf = malloc(MAX_PACKET_SIZE);
+    byte *recvbuf = malloc(MAX_PACKET_SIZE);
     memset(sendbuf, 0, MAX_PACKET_SIZE);
     memset(recvbuf, 0, MAX_PACKET_SIZE);
-	int packetlen = 0;
+    int packetlen = 0;
 
     // Structs for connection info
-	struct addrinfo servhints, hosthints, *servinfo, *hostinfo;
-	memset(&servhints, 0, sizeof(struct addrinfo));
-	memset(&hosthints, 0, sizeof(struct addrinfo));
-	servhints.ai_family = AF_INET; // AF_UNSPEC, AF_INET or AF_INET6
-	servhints.ai_socktype = SOCK_STREAM;
-	hosthints.ai_family = AF_INET;
-	hosthints.ai_socktype = SOCK_STREAM;
+    struct addrinfo servhints, hosthints, *servinfo, *hostinfo;
+    memset(&servhints, 0, sizeof(struct addrinfo));
+    memset(&hosthints, 0, sizeof(struct addrinfo));
+    servhints.ai_family = AF_INET; // AF_UNSPEC, AF_INET or AF_INET6
+    servhints.ai_socktype = SOCK_STREAM;
+    hosthints.ai_family = AF_INET;
+    hosthints.ai_socktype = SOCK_STREAM;
 
     // Connect to server
-	if ((status = getaddrinfo(host_address, host_port, &hosthints, &hostinfo)) != 0) {
+    if ((status = getaddrinfo(host_address, host_port, &hosthints, &hostinfo)) != 0) {
         DIE(gai_strerror(status));
     }
 
     if ((status = getaddrinfo(server_address, server_port, &servhints, &servinfo)) != 0) {
         DIE(gai_strerror(status));
     }
-	
-	servsock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
-	if (connect(servsock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
+    
+    servsock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+    if (connect(servsock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
         DIE("connection refused (is server running?)");
     }
 
     // Handshake with server
-    sleep(1);	// Server doesn't accept handshake if sent immediately
+    sleep(1);   // Server doesn't accept handshake if sent immediately
     init_hs(servsock);
 
     // Create keys and address structs
@@ -126,22 +128,24 @@ int main(int argc, char **argv) {
     freeaddrinfo(hostinfo);
     freeaddrinfo(servinfo);
 
+    struct keyring *ring = init_ring(host_key);
+
     // Send DHT_REGISTER_BEGIN to server
     uint16_t port = htons(atoi(host_addr.port));
-	byte *pl = malloc(sizeof(uint16_t) + strlen(host_addr.addr) + 1);
-	memcpy(pl, &port, sizeof(uint16_t));
-	memcpy(pl+sizeof(uint16_t), host_addr.addr, strlen(host_addr.addr) + 1);
-	packetlen = pack(sendbuf, MAX_PACKET_SIZE, serv_key, host_key,
-	   DHT_REGISTER_BEGIN, pl, sizeof(uint16_t) + strlen(host_addr.addr) + 1);
-	sendall(servsock, sendbuf, packetlen, 0);
-	free(pl);
+    byte *pl = malloc(sizeof(uint16_t) + strlen(host_addr.addr) + 1);
+    memcpy(pl, &port, sizeof(uint16_t));
+    memcpy(pl+sizeof(uint16_t), host_addr.addr, strlen(host_addr.addr) + 1);
+    packetlen = pack(sendbuf, MAX_PACKET_SIZE, serv_key, host_key,
+       DHT_REGISTER_BEGIN, pl, sizeof(uint16_t) + strlen(host_addr.addr) + 1);
+    sendall(servsock, sendbuf, packetlen, 0);
+    free(pl);
     
     // Start main loop (connection sequence isn't actually
     // finished at this point)
     while(running) {
         // Add sockets to listening pool
-		FD_ZERO(&rfds);
-		FD_SET(listensock, &rfds);
+        FD_ZERO(&rfds);
+        FD_SET(listensock, &rfds);
         FD_SET(servsock, &rfds);
         FD_SET(cmdsock, &rfds);
         if (left != -1) {
@@ -158,11 +162,11 @@ int main(int argc, char **argv) {
         // Let's hope 10 is high enough for numfds...
         status = select(10, &rfds, NULL, NULL, NULL);
 
-		if (status == -1) {
-			DIE("select failed");
-		} else if (FD_ISSET(cmdsock, &rfds)) {
-			// Currently program terminates if it receives q from stdin.
-			read(cmdsock, recvbuf, MAX_PACKET_SIZE);
+        if (status == -1) {
+            DIE("select failed");
+        } else if (FD_ISSET(cmdsock, &rfds)) {
+            // Currently program terminates if it receives q from stdin.
+            read(cmdsock, recvbuf, MAX_PACKET_SIZE);
             if (recvbuf[0] == 'q') {
                 DEBUG("Disconnecting...\n");
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
@@ -192,7 +196,7 @@ int main(int argc, char **argv) {
                     DIE("invalid command");
             }
             */
-		} else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
+        } else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
             int tempfd = -1;
             if (FD_ISSET(left, &rfds)) {
                 tempfd = left;
@@ -205,7 +209,8 @@ int main(int argc, char **argv) {
             struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_TRANSFER_DATA:
-                    // TODO: Implement data structure and insert data there
+                    add_key(ring, packet->target);
+                    write_block(block_path, packet->target, packet->payload, packet->pl_len);
                     break;
                 case DHT_SEND_DATA:
                     // TODO: Send payload to Java
@@ -245,8 +250,8 @@ int main(int argc, char **argv) {
                 case DHT_REGISTER_FAKE_ACK:
                     // First node in network
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
-					   DHT_REGISTER_DONE, NULL, 0);
-					sendall(servsock, sendbuf, packetlen, 0);
+                       DHT_REGISTER_DONE, NULL, 0);
+                    sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 case DHT_REGISTER_BEGIN:
                     // New node is trying to join, connect and send data
@@ -262,6 +267,8 @@ int main(int argc, char **argv) {
                     init_hs(tempfd);
 
                     // TODO Send data
+                    //struct keyring *slice = slice_ring(ring, )
+
                     // Send ACK to new node to inform that all data is sent
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, nb_key, nb_key,
                         DHT_REGISTER_ACK, NULL, 0);
@@ -272,11 +279,11 @@ int main(int argc, char **argv) {
                     // TODO Forget data sent to new neighbour
                     break;
                 case DHT_DEREGISTER_BEGIN:
-                	// A node leaves abnormally
-                	packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->sender, host_key,
-						DHT_DEREGISTER_DONE, NULL, 0);
-					sendall(servsock, sendbuf, packetlen, 0);
-                	break;
+                    // A node leaves abnormally
+                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->sender, host_key,
+                        DHT_DEREGISTER_DONE, NULL, 0);
+                    sendall(servsock, sendbuf, packetlen, 0);
+                    break;
                 case DHT_DEREGISTER_ACK:
                     // Server has responded to our attempt to leave, create connections to both neighbours
                     // Inform Java that disconnection sequence has begun.

@@ -17,6 +17,8 @@
 #define MAX_ADDR_LEN 64
 
 #define SHA1_KEY_LEN 20
+#define SHA1_STR_LEN 41
+#define MAX_PATH_LEN 128
 
 // Offset values for packing and unpacking
 #define MAX_PACKET_SIZE 65579 // 65535 + 2 + 2 + 20 + 20
