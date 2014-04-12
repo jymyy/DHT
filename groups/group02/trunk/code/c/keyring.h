@@ -31,7 +31,7 @@ int del_key(struct keyring *ring, sha1_t key);
 /*
  * Find position of (arbitrary) key. The returned pointer points to the key
  * or, if not found, the preceding key (when traversing clockwise). Return NULL
- * if error.
+ * on error.
  */
 struct keyring* find_pos(struct keyring *ring, sha1_t key);
 
@@ -43,7 +43,7 @@ struct keyring* find_pos(struct keyring *ring, sha1_t key);
 struct keyring* slice_ring(struct keyring *ring, sha1_t begin_key, sha1_t end_key);
 
 /*
- * Iterate the ring clockwise starting from first element and calling
+ * Iterate ring or slice clockwise starting from first element and calling
  * iterfun with each key as argument. Iterfun must return zero on success.
  */
 int iterate(struct keyring *ring, int (*iterfun)(sha1_t key));

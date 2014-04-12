@@ -2,7 +2,7 @@
 
 struct keyring* init_ring(sha1_t init_key) {
     struct keyring *new = malloc(sizeof(struct keyring));
-    strncpy(new->key, init_key, KEY_LEN);
+    strncpy(new->key, init_key, SHA1_KEY_LEN);
     new->next = new;
     new->previous = new;
     return new;
@@ -15,12 +15,12 @@ int add_key(struct keyring *ring, sha1_t key) {
     }    
 
     struct keyring *pos = find_pos(ring, key);
-    if (strncmp(key, pos->key, KEY_LEN) == 0) {
-        DEBUG("Tried to add duplicate key: %.*s\n", KEY_LEN, key);
+    if (strncmp(key, pos->key, SHA1_KEY_LEN) == 0) {
+        DEBUG("Tried to add duplicate key: %.*s\n", SHA1_KEY_LEN, key);
         return 1;
     } else {
         struct keyring *new = malloc(sizeof(struct keyring));
-        strncpy(new->key, key, KEY_LEN);
+        strncpy(new->key, key, SHA1_KEY_LEN);
         new->previous = pos;
         new->next = pos->next;
 
@@ -41,20 +41,20 @@ int del_key(struct keyring *ring, sha1_t key) {
     if (ring == NULL) {
         DEBUG("Tried to delete key from null ring\n");
         return 1;
-    } else if (strncmp(key, ring->key, KEY_LEN) == 0) {
+    } else if (strncmp(key, ring->key, SHA1_KEY_LEN) == 0) {
         DEBUG("Can't delete initialization key\n");
         return 1;
     }
 
     struct keyring *pos = find_pos(ring, key);
-    if (strncmp(key, pos->key, KEY_LEN) == 0) {
+    if (strncmp(key, pos->key, SHA1_KEY_LEN) == 0) {
         (pos->previous)->next = pos->next;
         (pos->next)->previous = pos->previous;
-        DEBUG("Deleted key: %.*s\n", KEY_LEN, key);
+        DEBUG("Deleted key: %.*s\n", SHA1_KEY_LEN, key);
         free(pos);
         return 0;
     } else {
-        DEBUG("Couldn't delete key: %.*s\n", KEY_LEN, key);
+        DEBUG("Couldn't delete key: %.*s\n", SHA1_KEY_LEN, key);
         return 1;
     }
     
@@ -72,35 +72,35 @@ struct keyring* find_pos(struct keyring *ring, sha1_t key) {
         // traversed until a position is found where the new key is between
         // current and next/previous. Ord_diff is a sentinel for those cases
         // where the new key is lowest or highest in the whole ring.
-        int ord = strncmp(key, ring->key, KEY_LEN);
+        int ord = strncmp(key, ring->key, SHA1_KEY_LEN);
         if (ord == 0) {
             pos = ring;
         } else if (ord < 0) {
             struct keyring *cur = ring;
             struct keyring *prev = ring->previous;
             int ord_cur = ord;
-            int ord_prev = strncmp(key, prev->key, KEY_LEN);
-            int ord_diff = strncmp(prev->key, cur->key, KEY_LEN);
+            int ord_prev = strncmp(key, prev->key, SHA1_KEY_LEN);
+            int ord_diff = strncmp(prev->key, cur->key, SHA1_KEY_LEN);
             while (ord_prev < 0 && ord_cur <= 0 && ord_diff < 0) {
                 cur = prev;
                 prev = prev->previous;
-                ord_cur = strncmp(key, cur->key, KEY_LEN);
-                ord_prev = strncmp(key, prev->key, KEY_LEN);
-                ord_diff = strncmp(prev->key, cur->key, KEY_LEN);
+                ord_cur = strncmp(key, cur->key, SHA1_KEY_LEN);
+                ord_prev = strncmp(key, prev->key, SHA1_KEY_LEN);
+                ord_diff = strncmp(prev->key, cur->key, SHA1_KEY_LEN);
             }
             pos = prev;
         } else if (ord > 0) {
             struct keyring *cur = ring;
             struct keyring *next = ring->next;
             int ord_cur = ord;
-            int ord_next = strncmp(key, next->key, KEY_LEN);
-            int ord_diff = strncmp(next->key, cur->key, KEY_LEN);
+            int ord_next = strncmp(key, next->key, SHA1_KEY_LEN);
+            int ord_diff = strncmp(next->key, cur->key, SHA1_KEY_LEN);
             while (0 <= ord_next && 0 < ord_cur && 0 < ord_diff) {
                 cur = next;
                 next = next->next;
-                ord_cur = strncmp(key, cur->key, KEY_LEN);
-                ord_next = strncmp(key, next->key, KEY_LEN);
-                ord_diff = strncmp(next->key, cur->key, KEY_LEN);
+                ord_cur = strncmp(key, cur->key, SHA1_KEY_LEN);
+                ord_next = strncmp(key, next->key, SHA1_KEY_LEN);
+                ord_diff = strncmp(next->key, cur->key, SHA1_KEY_LEN);
             }
             pos = cur;
         }
@@ -114,12 +114,12 @@ struct keyring* slice_ring(struct keyring *ring, sha1_t range_begin, sha1_t rang
     struct keyring *end = find_pos(ring, range_end);
 
     // Select the key that is inside the range
-    if (strncmp(begin->key, range_begin, KEY_LEN) != 0) {
+    if (strncmp(begin->key, range_begin, SHA1_KEY_LEN) != 0) {
         begin = begin->next;
     }
 
-    int ord_begin = strncmp(begin->key, ring->key, KEY_LEN);
-    int ord_end = strncmp(end->key, ring->key, KEY_LEN);
+    int ord_begin = strncmp(begin->key, ring->key, SHA1_KEY_LEN);
+    int ord_end = strncmp(end->key, ring->key, SHA1_KEY_LEN);
 
     if (ord_begin < 0 && 0 < ord_end) {
         // Join sliced parts
@@ -172,7 +172,7 @@ int free_ring(struct keyring *ring) {
         DEBUG("Tried to free null ring\n");
         return 1;
     } else if (ring == ring->next) {
-        DEBUG("Freeing key %.*s\n", KEY_LEN, ring->key);
+        DEBUG("Freeing key %.*s\n", SHA1_KEY_LEN, ring->key);
         free(ring);
     } else {
         if (ring->previous != NULL) {   // NULL check for slices
@@ -181,7 +181,7 @@ int free_ring(struct keyring *ring) {
         struct keyring *cur = ring;
         struct keyring *next = ring->next;
         for (; next != NULL; cur = next) {
-            DEBUG("Freeing key %.*s\n", KEY_LEN, cur->key);
+            DEBUG("Freeing key %.*s\n", SHA1_KEY_LEN, cur->key);
             next = cur->next;
             free(cur);
         }

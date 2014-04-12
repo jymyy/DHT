@@ -28,3 +28,10 @@ socketio.o: socketio.c
 clean:
 	/bin/rm -f *.o dhtnode
 
+# These are for testing
+hash_test: hash_test.o hash.o
+	$(LD) hash_test.o hash.o -o hash $(LDFLAGS)
+
+hash_test.o: hash_test.c
+	$(CC) $(CFLAGS) hash_test.c
+

@@ -1,7 +1,6 @@
 #ifndef TYPEDEFS_H
 #define TYPEDEFS_H
 
-
 #include <sys/select.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +15,8 @@
 
 #define MAX_CONNECTIONS 2
 #define MAX_ADDR_LEN 64
+
+#define SHA1_KEY_LEN 20
 
 // Offset values for packing and unpacking
 #define MAX_PACKET_SIZE 65579 // 65535 + 2 + 2 + 20 + 20
