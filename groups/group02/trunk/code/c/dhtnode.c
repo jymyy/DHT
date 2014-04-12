@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <string.h>
 #include <netdb.h>
-#include <unistd.h>
 
 #include "dhtpackettypes.h"
 #include "dhtpacket.h"
@@ -18,7 +17,6 @@
 #include "hash.h"
 
 void die(const char *reason) {
-    
     fprintf(stderr, "Fatal error: %s\n", reason);
     exit(1);
 }
@@ -57,24 +55,28 @@ int main(int argc, char **argv) {
     char *host_port = argv[2];
     char *server_address = argv[3];
     char *server_port = argv[4];
-                
+           
+    // Status info     
     int status = 0;
     int running = 1;
-    
-    // Connection state
     int acks_received = 0;
-    int left = -1;  // left neighbour socket
-    int right = -1; // right neighbour socket
+    
+    // Address structs and keys
+    struct tcp_addr host_addr;
+    struct tcp_addr serv_addr;
     struct tcp_addr left_addr;
     struct tcp_addr right_addr;
     sha1_t host_key;
     sha1_t serv_key;
 
+    // Sockets
     fd_set rfds;
     fd_set wfds;
     int cmdsock = fileno(stdin);    // TODO Connect this to GUI
-	int servsock = -1;
     int listensock = create_listen_socket(host_port);
+    int servsock = -1;
+    int left = -1;  // left neighbour socket
+    int right = -1; // right neighbour socket
 
     // Buffers for sending and receiving
 	byte *sendbuf = malloc(MAX_PACKET_SIZE);
@@ -91,7 +93,6 @@ int main(int argc, char **argv) {
 	servhints.ai_socktype = SOCK_STREAM;
 	hosthints.ai_family = AF_INET;
 	hosthints.ai_socktype = SOCK_STREAM;
-	hosthints.ai_flags = AI_PASSIVE;
 
     // Connect to server
 	if ((status = getaddrinfo(host_address, host_port, &hosthints, &hostinfo)) != 0) {
@@ -115,14 +116,12 @@ int main(int argc, char **argv) {
     struct sockaddr_in *sa = (struct sockaddr_in *) hostinfo->ai_addr;
     char host_ip4[INET_ADDRSTRLEN]; 
     inet_ntop(AF_INET, &(sa->sin_addr), host_ip4, INET_ADDRSTRLEN);
-	struct tcp_addr host_addr;
     strcpy(host_addr.addr, host_ip4);
     strcpy(host_addr.port, host_port);
 
     struct sockaddr_in *sb = (struct sockaddr_in *) servinfo->ai_addr;
     char serv_ip4[INET_ADDRSTRLEN]; 
     inet_ntop(AF_INET, &(sb->sin_addr), serv_ip4, INET_ADDRSTRLEN);
-    struct tcp_addr serv_addr;
     strcpy(serv_addr.addr, serv_ip4);
     strcpy(serv_addr.port, server_port);
 
@@ -163,7 +162,6 @@ int main(int argc, char **argv) {
 
         // Let's hope 10 is high enough for numfds...
         status = select(10, &rfds, NULL, NULL, NULL);
-        
 
 		if (status == -1) {
 			die("select failed");
@@ -260,22 +258,8 @@ int main(int argc, char **argv) {
                     ; // Complier throws error without this semicolon
                     int tempfd;
                     struct tcp_addr nb_addr;
-                    struct addrinfo nb_hints, *nb_info;
                     build_tcp_addr(packet->payload, &nb_addr, NULL);
-                    
-                    memset(&nb_hints, 0, sizeof(struct addrinfo));
-                    nb_hints.ai_family = AF_INET;
-                    nb_hints.ai_socktype = SOCK_STREAM;
-                    if ((status = getaddrinfo(nb_addr.addr, nb_addr.port, &nb_hints, &nb_info)) != 0) {
-                        die(gai_strerror(status));
-                    }
-					if ((tempfd = socket(nb_info->ai_family, nb_info->ai_socktype, nb_info->ai_protocol)) == -1) {
-						die("Socket creation failed\n");
-					}
-					if ((status = connect(tempfd, nb_info->ai_addr, nb_info->ai_addrlen)) == -1) {
-						die("Connecting failed\n");
-						close(tempfd);
-					}
+                    open_conn(&tempfd, &nb_addr);
                     
                     // Handshake with new node
                     sha1_t nb_key;
@@ -288,7 +272,6 @@ int main(int argc, char **argv) {
                         DHT_REGISTER_ACK, NULL, 0);
                     sendall(tempfd, sendbuf, packetlen, 0);
                     close(tempfd);
-                    freeaddrinfo(nb_info);
                     break;
                 case DHT_REGISTER_DONE:
                     // TODO Forget data sent to new neighbour
@@ -305,44 +288,13 @@ int main(int argc, char **argv) {
                     build_tcp_addr(packet->payload, &left_addr, &right_addr);
 
                     // Connect to left neighbour
-                    struct addrinfo left_hints, *left_info;
-                    memset(&left_hints, 0, sizeof(struct addrinfo));
-                    left_hints.ai_family = AF_INET;
-                    left_hints.ai_socktype = SOCK_STREAM;
-                    if ((status = getaddrinfo(left_addr.addr, left_addr.port, &left_hints, &left_info)) != 0) {
-                        die(gai_strerror(status));
-                    }
-                    if ((left = socket(left_info->ai_family, left_info->ai_socktype, left_info->ai_protocol)) == -1) {
-                        die(strerror(errno));
-                    }
-                    if ((status = connect(left, left_info->ai_addr, left_info->ai_addrlen)) == -1) {
-                        die(strerror(errno));
-                    }
-
-                    // Handshake with left
+                    open_conn(&left, &left_addr);
                     init_hs(left);
 
                     // Connect to right neighbour
-                    struct addrinfo right_hints, *right_info;
-                    memset(&right_hints, 0, sizeof(struct addrinfo));
-                    right_hints.ai_family = AF_INET;
-                    right_hints.ai_socktype = SOCK_STREAM;
-                    if ((status = getaddrinfo(right_addr.addr, right_addr.port, &right_hints, &right_info)) != 0) {
-                        die(gai_strerror(status));
-                    }
-                    if ((right = socket(right_info->ai_family, right_info->ai_socktype, right_info->ai_protocol)) == -1) {
-                        die(strerror(errno));
-                    }
-                    if ((status = connect(right, right_info->ai_addr, right_info->ai_addrlen)) == -1) {
-                        die(strerror(errno));
-                    }
-
-                    // Handshake with right
+                    open_conn(&right, &right_addr);
                     init_hs(right);
 
-                    // Cleanup
-                    freeaddrinfo(left_info);
-                    freeaddrinfo(right_info);
                     running = 0;
                     break;
                 case DHT_DEREGISTER_DENY:

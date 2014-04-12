@@ -15,7 +15,7 @@ int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t t
         memcpy(buf+PAYLOAD_OFFSET, payload, pl_len);
     }
     
-    DEBUG("Packing type %s... ready\n", packet_type(type));
+    DEBUG("Packing %s... ready\n", packet_type(type));
     return PACKET_HEADER_LEN + pl_len;
 }
 
@@ -46,7 +46,7 @@ struct packet* unpack(byte *buf, int packetlen) {
         packet->payload = NULL;
     }
 
-    DEBUG("Unpacking type %s... ready\n", packet_type(packet->type));
+    DEBUG("Unpacking %s... ready\n", packet_type(packet->type));
     return packet;  
     
 }

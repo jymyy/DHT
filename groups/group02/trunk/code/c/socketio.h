@@ -26,4 +26,6 @@ int init_hs(int socket);
  */
 int wait_hs(int socket);
 
+int open_conn(int *socket, struct tcp_addr *addr);
+
 #endif
