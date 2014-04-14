@@ -12,6 +12,13 @@ struct keyring {
 };
 
 /*
+ * Calculate the midpoint mid of a and b when traversing to direction
+ * dir. Clockwise is positive and counter-clockwise is negative.
+ * Return zero on success.
+ */
+int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir);
+
+/*
  * Return a pointer to keyring initialized with key.
  */
 struct keyring* init_ring(sha1_t init_key);
@@ -27,6 +34,11 @@ int add_key(struct keyring *ring, sha1_t key);
  * deleted, nonzero otherwise.
  */
 int del_key(struct keyring *ring, sha1_t key);
+
+/*
+ * Return nonzero if if ring contains key.
+ */
+int has_key(struct keyring *ring, sha1_t key);
 
 /*
  * Find position of (arbitrary) key. The returned pointer points to the key

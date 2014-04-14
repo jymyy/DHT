@@ -72,31 +72,3 @@ int shatostr(sha1_t sha, char* str) {
     DEBUG("Result: %s\n", str);
     return 0;
 }
-
-int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir) {
-    int ord = hashcmp(a, b);
-    int val = 0;
-    int carry = 0;
-
-    // First, calculate the midpoint for the sector that doesn't
-    // contain the gap.
-    for (int i = 0; i < SHA1_KEY_LEN; i++) {
-        val = (int) a[i] + (int) b[i] + 256*carry;
-        carry = val % 2;
-        val /= 2;
-        if (val - 256 > 0 && i > 0) {
-            mid[i-1]++;
-            val -= 256;
-        }
-        mid[i] = (unsigned char) val;
-    }
-
-    // Check if the requested midpoint was actually on the sector
-    // that has the gap. If so, then simply find the point that is on
-    // the opposite side of the ring.
-    if ((ord < 0 && dir < 0) || (ord > 0 && dir > 0)) {
-        mid[0] = (mid[0] + 128) % 256;
-    }
-
-    return 0;
-}

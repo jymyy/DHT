@@ -16,6 +16,7 @@
 #include "socketio.h"
 #include "fileio.h"
 #include "hash.h"
+#include "keyring.h"
 
 int create_listen_socket(char *port) {
     int fd;
@@ -51,7 +52,7 @@ int main(int argc, char **argv) {
     char *host_port = argv[2];
     char *server_address = argv[3];
     char *server_port = argv[4];
-    char *block_path = "blocks";    // TODO: Ask user for path
+    char *blockdir = "blocks";    // TODO: Ask user for path
            
     // Status info     
     int status = 0;
@@ -75,12 +76,15 @@ int main(int argc, char **argv) {
     int left = -1;  // left neighbour socket
     int right = -1; // right neighbour socket
 
-    // Buffers for sending and receiving
+    // Data buffers
     byte *sendbuf = malloc(MAX_PACKET_SIZE);
     byte *recvbuf = malloc(MAX_PACKET_SIZE);
+    byte *blockbuf = malloc(MAX_BLOCK_SIZE);
     memset(sendbuf, 0, MAX_PACKET_SIZE);
     memset(recvbuf, 0, MAX_PACKET_SIZE);
+    memset(blockbuf, 0, MAX_BLOCK_SIZE);
     int packetlen = 0;
+    int blocklen = 0;
 
     // Structs for connection info
     struct addrinfo servhints, hosthints, *servinfo, *hostinfo;
@@ -158,6 +162,7 @@ int main(int argc, char **argv) {
         // Reset buffers
         memset(sendbuf, 0, MAX_PACKET_SIZE);
         memset(recvbuf, 0, MAX_PACKET_SIZE);
+        memset(blockbuf, 0, MAX_BLOCK_SIZE);
 
         // Let's hope 10 is high enough for numfds...
         status = select(10, &rfds, NULL, NULL, NULL);
@@ -197,20 +202,21 @@ int main(int argc, char **argv) {
             }
             */
         } else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
-            int tempfd = -1;
+            int tempsock;
             if (FD_ISSET(left, &rfds)) {
-                tempfd = left;
+                tempsock = left;
                 left = -1;
             } else if (FD_ISSET(right, &rfds)) {
-                tempfd = right;
+                tempsock = right;
                 right = -1;
             }
-            packetlen = recvall(tempfd, recvbuf, MAX_PACKET_SIZE, 0);
+            packetlen = recvall(tempsock, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, packetlen);
             switch (packet->type) {
                 case DHT_TRANSFER_DATA:
+                    // Store data received from neighbour
                     add_key(ring, packet->target);
-                    write_block(block_path, packet->target, packet->payload, packet->pl_len);
+                    write_block(blockdir, packet->target, packet->payload, packet->pl_len);
                     break;
                 case DHT_SEND_DATA:
                     // TODO: Send payload to Java
@@ -222,7 +228,7 @@ int main(int argc, char **argv) {
                     // Received all data from neighbour, send DONE to server if
                     // ACK received from both neighbours
                     acks_received++;
-                    close(tempfd);
+                    close(tempsock);
 
                     if (acks_received == 2) {
                         packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
@@ -232,7 +238,7 @@ int main(int argc, char **argv) {
                     break;
                 case DHT_DEREGISTER_ACK:
                     // Received all data from leaving neighbour, acknowledge this to server
-                    close(tempfd);
+                    close(tempsock);
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->sender, host_key,
                         DHT_DEREGISTER_DONE, NULL, 0);
                     sendall(servsock, sendbuf, packetlen, 0);
@@ -246,6 +252,8 @@ int main(int argc, char **argv) {
         } else if (FD_ISSET(servsock, &rfds)) {
             packetlen = recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, packetlen);
+            int tempsock;
+            struct tcp_addr temp_addr;
             switch (packet->type) {
                 case DHT_REGISTER_FAKE_ACK:
                     // First node in network
@@ -256,27 +264,42 @@ int main(int argc, char **argv) {
                 case DHT_REGISTER_BEGIN:
                     // New node is trying to join, connect and send data
                     ; // Complier throws error without this semicolon
-                    int tempfd;
-                    struct tcp_addr nb_addr;
-                    build_tcp_addr(packet->payload, &nb_addr, NULL);
-                    open_conn(&tempfd, &nb_addr);
+                    
+                    build_tcp_addr(packet->payload, &temp_addr, NULL);
+                    open_conn(&tempsock, &temp_addr);
                     
                     // Handshake with new node
                     sha1_t nb_key;
-                    hash_addr(&nb_addr, nb_key);
-                    init_hs(tempfd);
+                    hash_addr(&temp_addr, nb_key);
+                    init_hs(tempsock);
 
-                    // TODO Send data
-                    //struct keyring *slice = slice_ring(ring, )
+                    // Send data
+                    sha1_t mid_clock;
+                    sha1_t mid_counter;
+                    calc_mid(host_key, nb_key, mid_clock, 1);
+                    calc_mid(host_key, nb_key, mid_counter, -1);
+                    struct keyring *slice = slice_ring(ring, mid_clock, mid_counter);
+                    struct keyring *slice_n = slice;
+                    while (slice_n != NULL) {
+                        blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
+                        if (blocklen > 0) {
+                            packetlen = pack(sendbuf, MAX_PACKET_SIZE, slice_n->key, host_key,
+                               DHT_TRANSFER_DATA, blockbuf, blocklen);
+                            sendall(tempsock, sendbuf, packetlen, 0);
+                        }
+                        rm_block(blockdir, slice_n->key);
+                    }
+                    free_ring(slice);
 
                     // Send ACK to new node to inform that all data is sent
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, nb_key, nb_key,
                         DHT_REGISTER_ACK, NULL, 0);
-                    sendall(tempfd, sendbuf, packetlen, 0);
-                    close(tempfd);
+                    sendall(tempsock, sendbuf, packetlen, 0);
+                    close(tempsock);
                     break;
                 case DHT_REGISTER_DONE:
-                    // TODO Forget data sent to new neighbour
+                    // TODO Forget data sent to new neighbour (currently blocks are actually
+                    // dumped immediately after they are sent).
                     break;
                 case DHT_DEREGISTER_BEGIN:
                     // A node leaves abnormally
@@ -305,8 +328,34 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "Disconnecting denied\n");
                     break;
                 case DHT_GET_DATA:
-                    // Some node requested data
-                    // TODO: Open connection to requesting node and send data
+                    ;// Some node requested data. Open connection to requesting node and send data
+                    
+                    build_tcp_addr(packet->payload, &temp_addr, NULL);
+                    open_conn(&tempsock, &temp_addr);
+                    
+                    // Handshake with new node
+                    init_hs(tempsock);
+
+                    if (has_key(ring, packet->target)) {
+                        blocklen = read_block(blockdir, packet->target, blockbuf, MAX_BLOCK_SIZE);
+                        if (blocklen > 0) {
+                            packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->target, host_key,
+                                DHT_SEND_DATA, blockbuf, blocklen);
+                            sendall(tempsock, sendbuf, packetlen, 0);
+                        }
+                    } else {
+                        packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->target, host_key,
+                            DHT_NO_DATA, NULL, 0);
+                        sendall(tempsock, sendbuf, packetlen, 0);
+                    }
+    
+                    break;
+                case DHT_PUT_DATA:
+                    add_key(ring, packet->target);
+                    write_block(blockdir, packet->target, packet->payload, packet->pl_len);
+                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->target, packet->sender,
+                        DHT_PUT_DATA_ACK, NULL, 0);
+                    sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 case DHT_PUT_DATA_ACK:
                     // Data added succesfully
@@ -314,7 +363,13 @@ int main(int argc, char **argv) {
                     break;
                 case DHT_DUMP_DATA:
                     // Some node requested data removal
-                    // TODO: Remove data (if exists) and send ACK to server
+                    // Remove data (if exists) and send ACK to server
+                    if (!(del_key(ring, packet->target))) {
+                        rm_block(blockdir, packet->target);
+                    }
+                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, packet->target, packet->sender,
+                        DHT_DUMP_DATA_ACK, NULL, 0);
+                    sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 case DHT_DUMP_DATA_ACK:
                     // Our request to remove data was succesful
@@ -335,20 +390,20 @@ int main(int argc, char **argv) {
         } else if (FD_ISSET(listensock, &rfds)) {
             // Another node tries to connect
             struct sockaddr_in tempaddr;
-            int tempfd;
+            int tempsock;
             unsigned int addrlen = 0;
 
-            if ((tempfd = accept(listensock, (struct sockaddr *)&tempaddr,
+            if ((tempsock = accept(listensock, (struct sockaddr *)&tempaddr,
                         &addrlen)) == -1) {
                 DIE(strerror(errno));
             } else if (left == -1) {
-                left = tempfd;
+                left = tempsock;
             } else if (left != -1 && right == -1) {
-                right = tempfd;
+                right = tempsock;
             } else {
                 DIE("error accepting new connection");
             }
-            wait_hs(tempfd);
+            wait_hs(tempsock);
         }
     }
 
@@ -415,10 +470,12 @@ int main(int argc, char **argv) {
     }
 
     // Cleanup
+    free_ring(ring);
     close(listensock);
     close(servsock);
     free(sendbuf);
     free(recvbuf);
+    free(blockbuf);
     
     return 0;
 }

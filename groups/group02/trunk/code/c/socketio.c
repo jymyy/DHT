@@ -32,7 +32,7 @@ int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
         if (bytes_received == 0) {
             DIE("sender disconnected");
         } else if (bytes_total > bufsize) {
-            DIE("recvbuf overflow")
+            DIE("recvbuf overflow");
         }
 		bytes_total += bytes_received;
 		bytes_missing -= bytes_received;
@@ -53,7 +53,7 @@ int recvall(int socket, byte *recvbuf, int bufsize, int flags) {
         if (bytes_received == 0) {
             DIE("sender disconnected");
         } else if (bytes_total > bufsize) {
-            DIE("recvbuf overflow")
+            DIE("recvbuf overflow");
         }
 		bytes_total += bytes_received;
 		bytes_missing -= bytes_received;

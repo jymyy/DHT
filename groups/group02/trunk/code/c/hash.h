@@ -30,11 +30,4 @@ int strtosha(char *hex, sha1_t sha);
  */
 int shatostr(sha1_t sha, char* hex);
 
-/*
- * Calculate the midpoint mid of a and b when traversing to direction
- * dir. Clockwise is positive and counter-clockwise is negative.
- * Return zero on success.
- */
-int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir);
-
 #endif

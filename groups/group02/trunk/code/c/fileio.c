@@ -2,18 +2,23 @@
 #include "typedefs.h"
 #include "hash.h"
 
-int write_block(char *path, sha1_t key, byte *buf, int blocklen) {
-    DEBUG("Writing block... ");
+int form_path(char *dir, char *fullpath, sha1_t key) {
     char fname[SHA1_STR_LEN];
-    char fullpath[MAX_PATH_LEN];
-    if (strlen(path) + SHA1_STR_LEN > MAX_PATH_LEN) {
-        DIE("write path too long");
+    if (strlen(dir) + SHA1_STR_LEN > MAX_PATH_LEN) {
+        DIE("directory path too long");
     }
-
     shatostr(key, fname);
-    strcpy(fullpath, path);
+    strcpy(fullpath, dir);
     strcat(fullpath, "/");
     strcat(fullpath, fname);
+    DEBUG("Formed path: %s\n", fullpath);
+    return 0;
+}
+
+int write_block(char *dir, sha1_t key, byte *buf, int blocklen) {
+    DEBUG("Writing block... ");
+    char fullpath[MAX_PATH_LEN];
+    form_path(dir, fullpath, key);
     FILE *file = fopen(fullpath, "wb");
     if (file == NULL) {
         DIE("failed to open file");
@@ -25,18 +30,10 @@ int write_block(char *path, sha1_t key, byte *buf, int blocklen) {
     return bytes_written;
 }
 
-int read_block(char *path, sha1_t key, byte *buf, int buflen) {
+int read_block(char *dir, sha1_t key, byte *buf, int buflen) {
     DEBUG("Reading block... ");
-    char fname[SHA1_STR_LEN];
     char fullpath[MAX_PATH_LEN];
-    if (strlen(path) + SHA1_STR_LEN > MAX_PATH_LEN) {
-        DIE("read path too long");
-    }
-
-    shatostr(key, fname);
-    strcpy(fullpath, path);
-    strcat(fullpath, "/");
-    strcat(fullpath, fname);
+    form_path(dir, fullpath, key);
     FILE *file = fopen(fullpath, "rb");
     if (file == NULL) {
         DIE("failed to open file");
@@ -46,4 +43,12 @@ int read_block(char *path, sha1_t key, byte *buf, int buflen) {
     fclose(file);
     DEBUG("ready");
     return bytes_read;
+}
+
+int rm_block(char *dir, sha1_t key) {
+    DEBUG("Removing block... ");
+    char fullpath[MAX_PATH_LEN];
+    form_path(dir, fullpath, key);
+    return remove(fullpath);
+
 }

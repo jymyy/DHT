@@ -6,22 +6,23 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <openssl/sha.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
-#include <openssl/sha.h>
 
 #define MAX_CONNECTIONS 2
 #define MAX_ADDR_LEN 64
+#define MAX_PATH_LEN 128
 
 #define SHA1_KEY_LEN 20
 #define SHA1_STR_LEN 41
-#define MAX_PATH_LEN 128
 
 // Offset values for packing and unpacking
 #define MAX_PACKET_SIZE 65579 // 65535 + 2 + 2 + 20 + 20
+#define MAX_BLOCK_SIZE 65535
 #define PACKET_HEADER_LEN 44
 #define TARGET_OFFSET 0
 #define SENDER_OFFSET 20
