@@ -112,13 +112,16 @@ int main(int argc, char **argv) {
 
     struct keyring *ring = init_ring(host_key);
 
-    // Send DHT_REGISTER_BEGIN to server
+    // Create payload for DHT_REGISTER_BEGIN
     uint16_t port = htons(atoi(host_addr.port));
-    byte *pl = malloc(sizeof(uint16_t) + strlen(host_addr.addr) + 1);
+    int len = sizeof(uint16_t) + strlen(host_addr.addr) + 1;
+    byte *pl = malloc(len);
     memcpy(pl, &port, sizeof(uint16_t));
     memcpy(pl+sizeof(uint16_t), host_addr.addr, strlen(host_addr.addr) + 1);
+
+    // Send DHT_REGISTER_BEGIN
     packetlen = pack(sendbuf, MAX_PACKET_SIZE, serv_key, host_key,
-       DHT_REGISTER_BEGIN, pl, sizeof(uint16_t) + strlen(host_addr.addr) + 1);
+       DHT_REGISTER_BEGIN, pl, len);
     sendall(servsock, sendbuf, packetlen, 0);
     free(pl);
     
@@ -374,8 +377,7 @@ int main(int argc, char **argv) {
             int tempsock;
             unsigned int addrlen = 0;
 
-            if ((tempsock = accept(listensock, (struct sockaddr *)&tempaddr,
-                        &addrlen)) == -1) {
+            if ((tempsock = accept(listensock, (struct sockaddr *)&tempaddr, &addrlen)) == -1) {
                 DIE(strerror(errno));
             } else if (leftsock == -1) {
                 leftsock = tempsock;
@@ -407,6 +409,11 @@ int main(int argc, char **argv) {
     struct keyring *slice_right = slice_ring(ring, host_key, key_min);
     struct keyring *slice_left_n = slice_left; 
     struct keyring *slice_right_n = slice_right;
+
+    struct keyring *slice;
+    struct keyring **slice_n;
+    int *tempsock;
+    sha1_t *temp_key;
     
     while (disconnecting) {
         FD_ZERO(&rfds);
@@ -420,6 +427,7 @@ int main(int argc, char **argv) {
         }
         memset(sendbuf, 0, MAX_PACKET_SIZE);
         memset(recvbuf, 0, MAX_PACKET_SIZE);
+        memset(blockbuf, 0, MAX_BLOCK_SIZE);
 
         status = select(10, &rfds, &wfds, NULL, NULL);
 
@@ -442,45 +450,37 @@ int main(int argc, char **argv) {
                 default:
                     DIE("invalid packet type");
             }
-        } else if (FD_ISSET(leftsock, &wfds) || FD_ISSET(rightsock, &wfds)) {
+        } else {
             if (FD_ISSET(leftsock, &wfds)) {
-                // Send data to left neighbour
-                if (slice_left_n != NULL) {
-                    blocklen = read_block(blockdir, slice_left_n->key, blockbuf, MAX_BLOCK_SIZE);
-                    if (blocklen > 0) {
-                        packetlen = pack(sendbuf, MAX_PACKET_SIZE, slice_left_n->key, host_key,
-                            DHT_TRANSFER_DATA, blockbuf, blocklen);
-                        sendall(leftsock, sendbuf, packetlen, 0);
-                    }
-                    rm_block(blockdir, slice_left_n->key);
-                    slice_left_n = slice_left_n->next;
-                } else {
-                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, left_key, host_key,
-                        DHT_DEREGISTER_ACK, NULL, 0);
-                    sendall(leftsock, sendbuf, packetlen, 0);
-                    close(leftsock);
-                    leftsock = -1;
-                    free_ring(slice_left);
-                }
+                slice = slice_left;
+                slice_n = &slice_left_n;
+                tempsock = &leftsock;
+                temp_key = &left_key;
             } else if (FD_ISSET(rightsock, &wfds)) {
-                // Send data to right neighbour
-                if (slice_right_n != NULL) {
-                    blocklen = read_block(blockdir, slice_right_n->key, blockbuf, MAX_BLOCK_SIZE);
-                    if (blocklen > 0) {
-                        packetlen = pack(sendbuf, MAX_PACKET_SIZE, slice_right_n->key, host_key,
-                            DHT_TRANSFER_DATA, blockbuf, blocklen);
-                        sendall(rightsock, sendbuf, packetlen, 0);
-                    }
-                    rm_block(blockdir, slice_right_n->key);
-                    slice_right_n = slice_right_n->next;
-                } else {
-                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, right_key, host_key,
-                        DHT_DEREGISTER_ACK, NULL, 0);
-                    sendall(rightsock, sendbuf, packetlen, 0);
-                    close(rightsock);
-                    rightsock = -1;
-                    free_ring(slice_right);
+                slice = slice_right;
+                slice_n = &slice_right_n;
+                tempsock = &rightsock;
+                temp_key = &right_key;
+            } else {
+                DIE("invalid socket selected");
+            }
+
+            if (*slice_n != NULL) {
+                blocklen = read_block(blockdir, (*slice_n)->key, blockbuf, MAX_BLOCK_SIZE);
+                if (blocklen > 0) {
+                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, (*slice_n)->key, host_key,
+                        DHT_TRANSFER_DATA, blockbuf, blocklen);
+                    sendall(*tempsock, sendbuf, packetlen, 0);
                 }
+                rm_block(blockdir, (*slice_n)->key);
+                *slice_n = (*slice_n)->next;
+            } else {
+                packetlen = pack(sendbuf, MAX_PACKET_SIZE, *temp_key, host_key,
+                    DHT_DEREGISTER_ACK, NULL, 0);
+                sendall(*tempsock, sendbuf, packetlen, 0);
+                close(*tempsock);
+                *tempsock = -1;
+                free_ring(slice);
             }
         }
     }

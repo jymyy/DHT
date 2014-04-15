@@ -12,7 +12,6 @@ all: $(PROG)
 
 $(PROG): $(OBJS)
 	$(LD) $(OBJS) -o $(PROG) $(LDFLAGS)
-	/bin/rm -f *.o
 
 dhtnode.o: dhtnode.c
 	$(CC) $(CFLAGS) dhtnode.c 
@@ -34,6 +33,7 @@ keyring.o: keyring.c
 
 clean:
 	/bin/rm -f *.o dhtnode keyring hash
+
 
 # These are for testing
 hash_test: hash_test.o hash.o

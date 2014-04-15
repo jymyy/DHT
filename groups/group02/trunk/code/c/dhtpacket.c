@@ -65,6 +65,16 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
     return 0;
 }
 
+int pack_tcp_addr(byte *buf, struct tcp_addr *addr) {
+    int len = sizeof(uint16_t) + sizeof(addr->addr);
+    uint16_t port = htons(atoi(addr->port));
+    byte *pl = malloc(len);
+    memcpy(pl, &port, sizeof(uint16_t));
+    memcpy(pl+sizeof(uint16_t), addr->addr, sizeof(addr->addr));
+
+    return len;
+}
+
 int acquire(int socket, sha1_t key, sha1_t host_key) {
     byte *buf = malloc(PACKET_HEADER_LEN);
     int packetlen = pack(buf, PACKET_HEADER_LEN, key, host_key,
@@ -76,6 +86,8 @@ int acquire(int socket, sha1_t key, sha1_t host_key) {
     if (packet->type != DHT_ACQUIRE_ACK) {
         DIE("invalid acquire lock response");
     }
+    free(packet);
+    free(buf);
 
     return 0;
 }
@@ -85,6 +97,7 @@ int release(int socket, sha1_t key, sha1_t host_key) {
     int packetlen = pack(buf, PACKET_HEADER_LEN, key, host_key,
                          DHT_RELEASE_REQUEST, NULL, 0);
     sendall(socket, buf, packetlen, 0);
+    free(buf);
 
     return 0;
 }
