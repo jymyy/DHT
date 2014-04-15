@@ -67,6 +67,11 @@ int main(int argc, char **argv) {
     sha1_t host_key;
     sha1_t serv_key;
 
+    strcpy(host_addr.port, host_port);
+    strcpy(host_addr.addr, host_address);
+    strcpy(serv_addr.port, server_port);
+    strcpy(serv_addr.addr, server_address);
+
     // Sockets
     fd_set rfds;
     fd_set wfds;
@@ -87,6 +92,7 @@ int main(int argc, char **argv) {
     int blocklen = 0;
 
     // Structs for connection info
+    /*
     struct addrinfo servhints, hosthints, *servinfo, *hostinfo;
     memset(&servhints, 0, sizeof(struct addrinfo));
     memset(&hosthints, 0, sizeof(struct addrinfo));
@@ -94,43 +100,15 @@ int main(int argc, char **argv) {
     servhints.ai_socktype = SOCK_STREAM;
     hosthints.ai_family = AF_INET;
     hosthints.ai_socktype = SOCK_STREAM;
+    */
 
     // Connect to server
-    if ((status = getaddrinfo(host_address, host_port, &hosthints, &hostinfo)) != 0) {
-        DIE(gai_strerror(status));
-    }
-
-    if ((status = getaddrinfo(server_address, server_port, &servhints, &servinfo)) != 0) {
-        DIE(gai_strerror(status));
-    }
-    
-    servsock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
-    if (connect(servsock, servinfo->ai_addr, servinfo->ai_addrlen) == -1) {
-        DIE("connection refused (is server running?)");
-    }
-
-    // Handshake with server
+    open_conn(&servsock, &serv_addr);
     sleep(1);   // Server doesn't accept handshake if sent immediately
     init_hs(servsock);
 
-    // Create keys and address structs
-    struct sockaddr_in *sa = (struct sockaddr_in *) hostinfo->ai_addr;
-    char host_ip4[INET_ADDRSTRLEN]; 
-    inet_ntop(AF_INET, &(sa->sin_addr), host_ip4, INET_ADDRSTRLEN);
-    strcpy(host_addr.addr, host_ip4);
-    strcpy(host_addr.port, host_port);
-
-    struct sockaddr_in *sb = (struct sockaddr_in *) servinfo->ai_addr;
-    char serv_ip4[INET_ADDRSTRLEN]; 
-    inet_ntop(AF_INET, &(sb->sin_addr), serv_ip4, INET_ADDRSTRLEN);
-    strcpy(serv_addr.addr, serv_ip4);
-    strcpy(serv_addr.port, server_port);
-
     hash_addr(&host_addr, host_key);
     hash_addr(&serv_addr, serv_key);
-
-    freeaddrinfo(hostinfo);
-    freeaddrinfo(servinfo);
 
     struct keyring *ring = init_ring(host_key);
 
@@ -183,7 +161,7 @@ int main(int argc, char **argv) {
             cmd = unpack_cmd(recvbuf);
             switch (cmd->type) {
                 case PUT:
-                    // Get payload from cmd, create packet and send to server
+                    // Get payload from cmd, create pacekt and send to server
                     break;
                 case GET:
                     // Send request to server
@@ -412,6 +390,20 @@ int main(int argc, char **argv) {
     // neighbours and wait confirmation from server.
     int disconnecting = 1;
     int deregs_received = 0;
+
+    sha1_t left_key;
+    hash_addr(&left_addr, left_key);
+    sha1_t right_key;
+    hash_addr(&right_addr, right_key);
+
+    sha1_t key_min;
+    sha1_t key_max;
+    memset(&key_min, 0, SHA1_KEY_LEN);
+    memset(&key_max, 255, SHA1_KEY_LEN);
+    struct keyring *slice_left = slice_ring(ring, host_key, key_max);
+    struct keyring *slice_right = slice_ring(ring, host_key, key_min);
+    struct keyring *slice_left_n = slice_left; 
+    struct keyring *slice_right_n = slice_right;
     while (disconnecting) {
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
@@ -449,22 +441,40 @@ int main(int argc, char **argv) {
         } else if (FD_ISSET(left, &wfds) || FD_ISSET(right, &wfds)) {
             if (FD_ISSET(left, &wfds)) {
                 // Send data to left neighbour
-                sha1_t left_key;
-                hash_addr(&left_addr, left_key);
-                packetlen = pack(sendbuf, MAX_PACKET_SIZE, left_key, host_key,
-                    DHT_DEREGISTER_ACK, NULL, 0);
-                sendall(left, sendbuf, packetlen, 0);
-                close(left);
-                left = -1;
+                if (slice_left_n != NULL) {
+                    blocklen = read_block(blockdir, slice_left_n->key, blockbuf, MAX_BLOCK_SIZE);
+                    if (blocklen > 0) {
+                        packetlen = pack(sendbuf, MAX_PACKET_SIZE, slice_left_n->key, host_key,
+                            DHT_TRANSFER_DATA, blockbuf, blocklen);
+                        sendall(left, sendbuf, packetlen, 0);
+                    }
+                    slice_left_n = slice_left_n->next;
+                } else {
+                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, left_key, host_key,
+                        DHT_DEREGISTER_ACK, NULL, 0);
+                    sendall(left, sendbuf, packetlen, 0);
+                    close(left);
+                    left = -1;
+                    free_ring(slice_left);
+                }
             } else if (FD_ISSET(right, &wfds)) {
                 // Send data to right neighbour
-                sha1_t right_key;
-                hash_addr(&right_addr, right_key);
-                packetlen = pack(sendbuf, MAX_PACKET_SIZE, right_key, host_key,
-                    DHT_DEREGISTER_ACK, NULL, 0);
-                sendall(right, sendbuf, packetlen, 0);
-                close(right);
-                right = -1;
+                if (slice_right_n != NULL) {
+                    blocklen = read_block(blockdir, slice_right_n->key, blockbuf, MAX_BLOCK_SIZE);
+                    if (blocklen > 0) {
+                        packetlen = pack(sendbuf, MAX_PACKET_SIZE, slice_right_n->key, host_key,
+                            DHT_TRANSFER_DATA, blockbuf, blocklen);
+                        sendall(right, sendbuf, packetlen, 0);
+                    }
+                    slice_right_n = slice_right_n->next;
+                } else {
+                    packetlen = pack(sendbuf, MAX_PACKET_SIZE, right_key, host_key,
+                        DHT_DEREGISTER_ACK, NULL, 0);
+                    sendall(right, sendbuf, packetlen, 0);
+                    close(right);
+                    right = -1;
+                    free_ring(slice_right);
+                }
             }
         }
     }
