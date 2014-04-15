@@ -78,8 +78,8 @@ int main(int argc, char **argv) {
     int cmdsock = fileno(stdin);    // TODO Connect this to GUI
     int listensock = create_listen_socket(host_port);
     int servsock = -1;
-    int left = -1;  // left neighbour socket
-    int right = -1; // right neighbour socket
+    int leftsock = -1;  // left neighbour socket
+    int rightsock = -1; // right neighbour socket
 
     // Data buffers
     byte *sendbuf = malloc(MAX_PACKET_SIZE);
@@ -130,11 +130,11 @@ int main(int argc, char **argv) {
         FD_SET(listensock, &rfds);
         FD_SET(servsock, &rfds);
         FD_SET(cmdsock, &rfds);
-        if (left != -1) {
-            FD_SET(left, &rfds);
+        if (leftsock != -1) {
+            FD_SET(leftsock, &rfds);
         } 
-        if (right != -1) {
-            FD_SET(right, &rfds);
+        if (rightsock != -1) {
+            FD_SET(rightsock, &rfds);
         }
 
         // Reset buffers
@@ -179,14 +179,14 @@ int main(int argc, char **argv) {
                     DIE("invalid command");
             }
             */
-        } else if (FD_ISSET(left, &rfds) || FD_ISSET(right, &rfds)) {
+        } else if (FD_ISSET(leftsock, &rfds) || FD_ISSET(rightsock, &rfds)) {
             int tempsock;
-            if (FD_ISSET(left, &rfds)) {
-                tempsock = left;
-                left = -1;
-            } else if (FD_ISSET(right, &rfds)) {
-                tempsock = right;
-                right = -1;
+            if (FD_ISSET(leftsock, &rfds)) {
+                tempsock = leftsock;
+                leftsock = -1;
+            } else if (FD_ISSET(rightsock, &rfds)) {
+                tempsock = rightsock;
+                rightsock = -1;
             }
             packetlen = recvall(tempsock, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, packetlen);
@@ -291,12 +291,12 @@ int main(int argc, char **argv) {
                     build_tcp_addr(packet->payload, &left_addr, &right_addr);
 
                     // Connect to left neighbour
-                    open_conn(&left, &left_addr);
-                    init_hs(left);
+                    open_conn(&leftsock, &left_addr);
+                    init_hs(leftsock);
 
                     // Connect to right neighbour
-                    open_conn(&right, &right_addr);
-                    init_hs(right);
+                    open_conn(&rightsock, &right_addr);
+                    init_hs(rightsock);
 
                     running = 0;
                     break;
@@ -374,10 +374,10 @@ int main(int argc, char **argv) {
             if ((tempsock = accept(listensock, (struct sockaddr *)&tempaddr,
                         &addrlen)) == -1) {
                 DIE(strerror(errno));
-            } else if (left == -1) {
-                left = tempsock;
-            } else if (left != -1 && right == -1) {
-                right = tempsock;
+            } else if (leftsock == -1) {
+                leftsock = tempsock;
+            } else if (leftsock != -1 && rightsock == -1) {
+                rightsock = tempsock;
             } else {
                 DIE("error accepting new connection");
             }
@@ -404,15 +404,16 @@ int main(int argc, char **argv) {
     struct keyring *slice_right = slice_ring(ring, host_key, key_min);
     struct keyring *slice_left_n = slice_left; 
     struct keyring *slice_right_n = slice_right;
+    
     while (disconnecting) {
         FD_ZERO(&rfds);
         FD_ZERO(&wfds);
         FD_SET(servsock, &rfds);
-        if (left != -1) {
-            FD_SET(left, &wfds);
+        if (leftsock != -1) {
+            FD_SET(leftsock, &wfds);
         } 
-        if (right != -1) {
-            FD_SET(right, &wfds);
+        if (rightsock != -1) {
+            FD_SET(rightsock, &wfds);
         }
         memset(sendbuf, 0, MAX_PACKET_SIZE);
         memset(recvbuf, 0, MAX_PACKET_SIZE);
@@ -438,41 +439,43 @@ int main(int argc, char **argv) {
                 default:
                     DIE("invalid packet type");
             }
-        } else if (FD_ISSET(left, &wfds) || FD_ISSET(right, &wfds)) {
-            if (FD_ISSET(left, &wfds)) {
+        } else if (FD_ISSET(leftsock, &wfds) || FD_ISSET(rightsock, &wfds)) {
+            if (FD_ISSET(leftsock, &wfds)) {
                 // Send data to left neighbour
                 if (slice_left_n != NULL) {
                     blocklen = read_block(blockdir, slice_left_n->key, blockbuf, MAX_BLOCK_SIZE);
                     if (blocklen > 0) {
                         packetlen = pack(sendbuf, MAX_PACKET_SIZE, slice_left_n->key, host_key,
                             DHT_TRANSFER_DATA, blockbuf, blocklen);
-                        sendall(left, sendbuf, packetlen, 0);
+                        sendall(leftsock, sendbuf, packetlen, 0);
                     }
+                    rm_block(blockdir, slice_left_n->key);
                     slice_left_n = slice_left_n->next;
                 } else {
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, left_key, host_key,
                         DHT_DEREGISTER_ACK, NULL, 0);
-                    sendall(left, sendbuf, packetlen, 0);
-                    close(left);
-                    left = -1;
+                    sendall(leftsock, sendbuf, packetlen, 0);
+                    close(leftsock);
+                    leftsock = -1;
                     free_ring(slice_left);
                 }
-            } else if (FD_ISSET(right, &wfds)) {
+            } else if (FD_ISSET(rightsock, &wfds)) {
                 // Send data to right neighbour
                 if (slice_right_n != NULL) {
                     blocklen = read_block(blockdir, slice_right_n->key, blockbuf, MAX_BLOCK_SIZE);
                     if (blocklen > 0) {
                         packetlen = pack(sendbuf, MAX_PACKET_SIZE, slice_right_n->key, host_key,
                             DHT_TRANSFER_DATA, blockbuf, blocklen);
-                        sendall(right, sendbuf, packetlen, 0);
+                        sendall(rightsock, sendbuf, packetlen, 0);
                     }
+                    rm_block(blockdir, slice_right_n->key);
                     slice_right_n = slice_right_n->next;
                 } else {
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, right_key, host_key,
                         DHT_DEREGISTER_ACK, NULL, 0);
-                    sendall(right, sendbuf, packetlen, 0);
-                    close(right);
-                    right = -1;
+                    sendall(rightsock, sendbuf, packetlen, 0);
+                    close(rightsock);
+                    rightsock = -1;
                     free_ring(slice_right);
                 }
             }
