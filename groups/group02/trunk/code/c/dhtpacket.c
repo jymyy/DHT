@@ -65,16 +65,6 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
     return 0;
 }
 
-int pack_tcp_addr(byte *buf, struct tcp_addr *addr) {
-    int len = sizeof(uint16_t) + sizeof(addr->addr);
-    uint16_t port = htons(atoi(addr->port));
-    byte *pl = malloc(len);
-    memcpy(pl, &port, sizeof(uint16_t));
-    memcpy(pl+sizeof(uint16_t), addr->addr, sizeof(addr->addr));
-
-    return len;
-}
-
 int acquire(int socket, sha1_t key, sha1_t host_key) {
     byte *buf = malloc(PACKET_HEADER_LEN);
     int packetlen = pack(buf, PACKET_HEADER_LEN, key, host_key,

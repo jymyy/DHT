@@ -18,6 +18,8 @@
 #include "hash.h"
 #include "keyring.h"
 
+#include "logging.h"
+
 int create_listen_socket(char *port) {
     int fd;
     int t;
