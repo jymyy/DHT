@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
                     break;
                 case DHT_REGISTER_BEGIN:
                     // New node is trying to join, connect and send data
-                    ; // Complier throws error without this semicolon
+                    ; // Compiler throws error without this semicolon
                     
                     build_tcp_addr(packet->payload, &temp_addr, NULL);
                     open_conn(&tempsock, &temp_addr);
@@ -352,6 +352,9 @@ int main(int argc, char **argv) {
                 case DHT_DUMP_DATA_ACK:
                     // Our request to remove data was succesful
                     // TODO: Send OK to Java
+                    break;
+                case DHT_RELEASE_ACK:
+                    // Lock was release succesfully
                     break;
                 default:
                     // Invalid packet type, dump packet if debugging and die

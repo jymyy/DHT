@@ -12,6 +12,7 @@ all: $(PROG)
 
 $(PROG): $(OBJS)
 	$(LD) $(OBJS) -o $(PROG) $(LDFLAGS)
+	/bin/rm -f *.o
 
 dhtnode.o: dhtnode.c
 	$(CC) $(CFLAGS) dhtnode.c 

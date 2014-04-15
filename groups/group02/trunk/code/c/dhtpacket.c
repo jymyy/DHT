@@ -1,9 +1,7 @@
 #include "dhtpacket.h"
+#include "socketio.h"
 #include "typedefs.h"
 
-/*
- * Create packet with given parameters into buffer buf.
- */
 int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t type, byte *payload, uint16_t pl_len) {
     memcpy(buf+TARGET_OFFSET, target_key, sizeof(sha1_t));
     memcpy(buf+SENDER_OFFSET, sender_key, sizeof(sha1_t));
@@ -19,9 +17,6 @@ int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t t
     return PACKET_HEADER_LEN + pl_len;
 }
 
-/*
- * Return packet constructed from data in buffer buf.
- */
 struct packet* unpack(byte *buf, int packetlen) {
     // There is a bug/undocumented behaviour in the server.
     // Sometimes when the server sends a packet (usually if it is a
@@ -48,12 +43,8 @@ struct packet* unpack(byte *buf, int packetlen) {
 
     DEBUG("Unpacking %s... ready\n", packet_type(packet->type));
     return packet;  
-    
 }
 
-/*
- * Build TCP address(es) from packet payload.
- */
 int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right) {
     uint16_t port = 0;
     uint16_t offset = 0;
@@ -74,10 +65,31 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
     return 0;
 }
 
-/*
- * Function for turning the packettypes to
- * plain text.
- */
+int acquire(int socket, sha1_t key, sha1_t host_key) {
+    byte *buf = malloc(PACKET_HEADER_LEN);
+    int packetlen = pack(buf, PACKET_HEADER_LEN, key, host_key,
+                         DHT_ACQUIRE_REQUEST, NULL, 0);
+    sendall(socket, buf, packetlen, 0);
+    recvall(socket, buf, PACKET_HEADER_LEN, 0);
+
+    struct packet *packet = unpack(buf, PACKET_HEADER_LEN);
+    if (packet->type != DHT_ACQUIRE_ACK) {
+        DIE("invalid acquire lock response");
+    }
+
+    return 0;
+}
+
+int release(int socket, sha1_t key, sha1_t host_key) {
+    byte *buf = malloc(PACKET_HEADER_LEN);
+    int packetlen = pack(buf, PACKET_HEADER_LEN, key, host_key,
+                         DHT_RELEASE_REQUEST, NULL, 0);
+    sendall(socket, buf, packetlen, 0);
+
+    return 0;
+}
+
+
 char* packet_type(int type) {
     
     switch (type) {
