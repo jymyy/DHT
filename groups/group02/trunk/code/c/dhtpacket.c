@@ -1,6 +1,9 @@
 #include "dhtpacket.h"
 #include "socketio.h"
 #include "typedefs.h"
+#include "log.h"
+
+const char *TAG_PACKET = "Packet";
 
 int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t type, byte *payload, uint16_t pl_len) {
     memcpy(buf+TARGET_OFFSET, target_key, sizeof(sha1_t));
@@ -13,7 +16,7 @@ int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key, uint16_t t
         memcpy(buf+PAYLOAD_OFFSET, payload, pl_len);
     }
     
-    DEBUG("Packing %s... ready\n", packet_type(type));
+    LOG_INFO(TAG_PACKET, "Packed %s", packet_type(type));
     return PACKET_HEADER_LEN + pl_len;
 }
 
@@ -41,7 +44,7 @@ struct packet* unpack(byte *buf, int packetlen) {
         packet->payload = NULL;
     }
 
-    DEBUG("Unpacking %s... ready\n", packet_type(packet->type));
+    LOG_INFO(TAG_PACKET, "Unpacked %s", packet_type(packet->type));
     return packet;  
 }
 
@@ -74,7 +77,7 @@ int acquire(int socket, sha1_t key, sha1_t host_key) {
 
     struct packet *packet = unpack(buf, PACKET_HEADER_LEN);
     if (packet->type != DHT_ACQUIRE_ACK) {
-        DIE("invalid acquire lock response");
+        DIE(TAG_PACKET, "Invalid acquire lock response");
     }
     free(packet);
     free(buf);

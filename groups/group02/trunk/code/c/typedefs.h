@@ -30,15 +30,6 @@
 #define PL_LEN_OFFSET 42
 #define PAYLOAD_OFFSET 44
 
-
-#ifndef NDEBUG
-#define DEBUG(...) fprintf(stderr, __VA_ARGS__)
-#else
-#define DEBUG(...) 
-#endif
-
-#define DIE(reason) do {fprintf(stderr, "Fatal error: %s\n", reason); exit(1);} while (0)
-
 typedef unsigned char byte;
 
 typedef unsigned char sha1_t[SHA_DIGEST_LENGTH];

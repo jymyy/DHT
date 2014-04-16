@@ -1,6 +1,9 @@
 #include <openssl/evp.h>
 
 #include "typedefs.h"
+#include "log.h"
+
+const char *TAG_HASH = "Hash";
 
 int hash_addr(struct tcp_addr *tcp_addr, sha1_t key) {
     // For some reason hashing port first and then address (using
@@ -49,7 +52,6 @@ int strtosha(char *str, sha1_t sha) {
     unsigned char val1 = 0;
     unsigned char val2 = 0;
     unsigned char val = 0;
-    DEBUG("Converting str to sha1_t\n");
     for (int i = 0; i < SHA1_KEY_LEN; i++) {
         val1 = hextodec(str[2*i]);
         val2 = hextodec(str[2*i+1]);
@@ -57,18 +59,15 @@ int strtosha(char *str, sha1_t sha) {
         if (val1 == 255 || val2 == 255) {
             return 1;
         }
-        DEBUG("Byte %02d: %03d -> %03d\n", i, sha[i], val);
         sha[i] = val;
     }
     return 0;
 }
 
 int shatostr(sha1_t sha, char* str) {
-    DEBUG("Converting sha1_t to str\n");
     for (int i = 0; i < SHA1_KEY_LEN; i++) {
         snprintf(str+i*2, 3, "%02x", sha[i]);
     }
     str[SHA1_STR_LEN] = '\0';
-    DEBUG("Result: %s\n", str);
     return 0;
 }

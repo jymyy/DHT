@@ -18,7 +18,9 @@
 #include "hash.h"
 #include "keyring.h"
 
-#include "logging.h"
+#include "log.h"
+
+const char *TAG_NODE = "Node";
 
 int create_listen_socket(char *port) {
     int fd;
@@ -32,22 +34,22 @@ int create_listen_socket(char *port) {
 
     fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd == -1)
-        DIE(strerror(errno));
+        DIE(TAG_NODE, "%s", strerror(errno));
 
     t = bind(fd, (struct sockaddr *)(&a), sizeof(struct sockaddr_in));
     if (t == -1)
-        DIE(strerror(errno));
+        DIE(TAG_NODE, "%s", strerror(errno));
 
     t = listen(fd, MAX_CONNECTIONS);
     if (t == -1)
-        DIE(strerror(errno));        
+        DIE(TAG_NODE, "%s", strerror(errno));        
 
     return fd;
 }
 
 int main(int argc, char **argv) {
     if (argc != 5) {
-        DIE("give host and server ports and addresses as argument");
+        DIE(TAG_NODE, "Give host and server ports and addresses as argument");
     }
 
     char *host_address = argv[1];
@@ -152,12 +154,12 @@ int main(int argc, char **argv) {
         status = select(10, &rfds, NULL, NULL, NULL);
 
         if (status == -1) {
-            DIE("select failed");
+            DIE(TAG_NODE, "Select failed");
         } else if (FD_ISSET(cmdsock, &rfds)) {
             // Currently program terminates if it receives q from stdin.
             read(cmdsock, recvbuf, MAX_PACKET_SIZE);
             if (recvbuf[0] == 'q') {
-                DEBUG("Disconnecting...\n");
+                LOG_INFO(TAG_NODE, "Requesting permission to leave");
                 packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
                     DHT_DEREGISTER_BEGIN, NULL, 0);
                 sendall(servsock, sendbuf, packetlen, 0);
@@ -176,7 +178,7 @@ int main(int argc, char **argv) {
                     // Send request to server
                     break;
                 case TERMINATE:
-                    DEBUG("Disconnecting...\n");
+                    LOG_DEBUG(TAG_NODE, "Disconnecting...\n");
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
                         DHT_DEREGISTER_BEGIN, NULL, 0);
                     sendall(servsock, sendbuf, packetlen, 0);
@@ -186,7 +188,7 @@ int main(int argc, char **argv) {
                 case RELEASE_DIR:
                     break;
                 default:
-                    DIE("invalid command");
+                    DIE(TAG_NODE, "Invalid command");
             }
             */
         } else if (FD_ISSET(leftsock, &rfds) || FD_ISSET(rightsock, &rfds)) {
@@ -233,7 +235,7 @@ int main(int argc, char **argv) {
                     sendall(servsock, sendbuf, packetlen, 0);
                     break;
                 default:
-                    DIE("invalid header");
+                    LOG_ERROR(TAG_NODE, "Invalid header");
             }
             free(packet->payload);
             free(packet);
@@ -315,7 +317,7 @@ int main(int argc, char **argv) {
                 case DHT_DEREGISTER_DENY:
                     // Disconnection attempt denied
                     // TODO: Inform Java
-                    fprintf(stderr, "Disconnecting denied\n");
+                    LOG_WARN(TAG_NODE, "Request to leave denied");
                     break;
                 case DHT_GET_DATA:
                     ;// Some node requested data. Open connection to requesting node and send data
@@ -369,13 +371,7 @@ int main(int argc, char **argv) {
                     // Lock was release succesfully
                     break;
                 default:
-                    // Invalid packet type, dump packet if debugging and die
-                    DEBUG("PACKET DUMP\n");
-                    for (int i = 0; i < packetlen; ++i) {
-                        DEBUG("%x ", recvbuf[i]);
-                    }
-                    DEBUG("\n");
-                    DIE("invalid packet type");
+                    LOG_ERROR(TAG_NODE, "Invalid packet type");
             }
             free(packet->payload);
             free(packet);
@@ -387,13 +383,13 @@ int main(int argc, char **argv) {
             unsigned int addrlen = 0;
 
             if ((tempsock = accept(listensock, (struct sockaddr *)&tempaddr, &addrlen)) == -1) {
-                DIE(strerror(errno));
+                DIE(TAG_NODE, "%s", strerror(errno));
             } else if (leftsock == -1) {
                 leftsock = tempsock;
             } else if (leftsock != -1 && rightsock == -1) {
                 rightsock = tempsock;
             } else {
-                DIE("error accepting new connection");
+                DIE(TAG_NODE, "Error accepting new connection");
             }
             wait_hs(tempsock);
         }
@@ -441,7 +437,7 @@ int main(int argc, char **argv) {
         status = select(10, &rfds, &wfds, NULL, NULL);
 
         if (status == -1) {
-            DIE("select failed");
+            DIE(TAG_NODE, "Select failed");
         } else if (FD_ISSET(servsock, &rfds)) {
             packetlen = recvall(servsock, recvbuf, MAX_PACKET_SIZE, 0);
             struct packet *packet = unpack(recvbuf, packetlen);
@@ -458,7 +454,7 @@ int main(int argc, char **argv) {
                     free(packet);
                     break;
                 default:
-                    DIE("invalid packet type");
+                    DIE(TAG_NODE, "Invalid packet type");
             }
         } else {
             if (FD_ISSET(leftsock, &wfds)) {
@@ -472,7 +468,7 @@ int main(int argc, char **argv) {
                 tempsock = &rightsock;
                 temp_key = &right_key;
             } else {
-                DIE("invalid socket selected");
+                DIE(TAG_NODE, "Invalid socket selected");
             }
 
             if (*slice_n != NULL) {

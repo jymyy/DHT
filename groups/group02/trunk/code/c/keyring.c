@@ -1,6 +1,9 @@
 #include "typedefs.h"
 #include "keyring.h"
 #include "hash.h"
+#include "log.h"
+
+const char *TAG_KEYRING = "Keyring";
 
 int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir) {
     int ord = hashcmp(a, b);
@@ -40,13 +43,13 @@ struct keyring* init_ring(sha1_t init_key) {
 
 int add_key(struct keyring *ring, sha1_t key) {
     if (ring == NULL) {
-        DEBUG("Tried to add key to null ring\n");
+        LOG_WARN(TAG_KEYRING, "Tried to add key to null ring");
         return 1;
     }    
 
     struct keyring *pos = find_pos(ring, key);
     if (hashcmp(key, pos->key) == 0) {
-        DEBUG("Tried to add duplicate key: %.*s\n", SHA1_KEY_LEN, key);
+        LOG_WARN(TAG_KEYRING, "Tried to add duplicate key: %.*s", SHA1_KEY_LEN, key);
         return 1;
     } else {
         struct keyring *new = malloc(sizeof(struct keyring));
@@ -67,10 +70,10 @@ int add_key(struct keyring *ring, sha1_t key) {
 
 int del_key(struct keyring *ring, sha1_t key) {
     if (ring == NULL) {
-        DEBUG("Tried to delete key from null ring\n");
+        LOG_WARN(TAG_KEYRING, "Tried to delete key from null ring");
         return 1;
     } else if (hashcmp(key, ring->key) == 0) {
-        DEBUG("Can't delete initialization key\n");
+        LOG_WARN(TAG_KEYRING, "Can't delete initialization key");
         return 1;
     }
 
@@ -78,18 +81,18 @@ int del_key(struct keyring *ring, sha1_t key) {
     if (hashcmp(key, pos->key) == 0) {
         (pos->previous)->next = pos->next;
         (pos->next)->previous = pos->previous;
-        DEBUG("Deleted key: %.*s\n", SHA1_KEY_LEN, key);
+        LOG_DEBUG(TAG_KEYRING, "Deleted key: %.*s", SHA1_KEY_LEN, key);
         free(pos);
         return 0;
     } else {
-        DEBUG("Couldn't delete key: %.*s\n", SHA1_KEY_LEN, key);
+        LOG_WARN(TAG_KEYRING, "Couldn't delete key: %.*s", SHA1_KEY_LEN, key);
         return 1;
     }
 }
 
 int has_key(struct keyring *ring, sha1_t key) {
     if (ring == NULL) {
-        DEBUG("Tried to delete key from null ring\n");
+        LOG_WARN(TAG_KEYRING, "Tried to delete key from null ring");
         return 0;
     }
 
@@ -100,7 +103,7 @@ int has_key(struct keyring *ring, sha1_t key) {
 struct keyring* find_pos(struct keyring *ring, sha1_t key) {
     struct keyring *pos = NULL;
     if (ring == NULL) {
-        DEBUG("Tried to find position in null ring\n");
+        LOG_WARN(TAG_KEYRING, "Tried to find position in null ring");
     } else if (ring == ring->next) {
         pos = ring;
     } else {
@@ -194,7 +197,7 @@ struct keyring* slice_ring(struct keyring *ring, sha1_t range_begin, sha1_t rang
 
 int iterate(struct keyring *ring, int (*iterfun)(sha1_t key)) {
     if (ring == NULL) {
-        DEBUG("Tried to iterate null ring\n");
+        LOG_WARN(TAG_KEYRING, "Tried to iterate null ring");
         return 1;
     } else {
         struct keyring *cur = ring;
@@ -208,10 +211,10 @@ int iterate(struct keyring *ring, int (*iterfun)(sha1_t key)) {
 }
 
 int free_ring(struct keyring *ring) {
-    DEBUG("Freeing ring... ");
+    LOG_DEBUG(TAG_KEYRING, "Freeing ring");
     if (ring == NULL) {
-        DEBUG("tried to free null ring\n");
-        return 1;
+        LOG_DEBUG(TAG_KEYRING, "Tried to free null ring");
+        return 0;
     } else if (ring == ring->next) {
         free(ring);
     } else {
@@ -226,6 +229,5 @@ int free_ring(struct keyring *ring) {
         }
         ring = NULL;
     }
-    DEBUG("ready\n");
     return 0;
 }
