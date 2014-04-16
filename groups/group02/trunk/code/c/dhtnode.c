@@ -60,6 +60,7 @@ int main(int argc, char **argv) {
     int status = 0;
     int running = 1;
     int acks_received = 0;
+    int blocks_maintained = 0; // TODO: Update this
     
     // Address structs and keys
     struct tcp_addr host_addr;
@@ -166,7 +167,7 @@ int main(int argc, char **argv) {
             cmd = unpack_cmd(recvbuf);
             switch (cmd->type) {
                 case PUT:
-                    // Get payload from cmd, create pacekt and send to server
+                    // Get payload from cmd, create packet and send to server
                     break;
                 case GET:
                     // Send request to server
@@ -179,6 +180,10 @@ int main(int argc, char **argv) {
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
                         DHT_DEREGISTER_BEGIN, NULL, 0);
                     sendall(servsock, sendbuf, packetlen, 0);
+                    break;
+                case GET_DIR:
+                    break;
+                case RELEASE_DIR:
                     break;
                 default:
                     DIE("invalid command");
@@ -217,6 +222,7 @@ int main(int argc, char **argv) {
                         packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
                             DHT_REGISTER_DONE, NULL, 0);
                         sendall(servsock, sendbuf, packetlen, 0);
+                        // TODO: Send REG_ACK to Java
                     }
                     break;
                 case DHT_DEREGISTER_ACK:
@@ -243,6 +249,7 @@ int main(int argc, char **argv) {
                     packetlen = pack(sendbuf, MAX_PACKET_SIZE, host_key, host_key,
                        DHT_REGISTER_DONE, NULL, 0);
                     sendall(servsock, sendbuf, packetlen, 0);
+                    // TODO: Send REG_ACK to Java
                     break;
                 case DHT_REGISTER_BEGIN:
                     // New node is trying to join, connect and send data
@@ -445,6 +452,7 @@ int main(int argc, char **argv) {
                     deregs_received++;
                     if (deregs_received == 2) {
                         disconnecting = 0;
+                        // TODO: Send DEREG_ACK to Java
                     }
                     free(packet->payload);
                     free(packet);
@@ -484,6 +492,7 @@ int main(int argc, char **argv) {
                 *tempsock = -1;
                 free_ring(slice);
             }
+            // TODO: Send DATA_TRANSFER to Java
         }
     }
 

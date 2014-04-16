@@ -14,6 +14,7 @@
 #define LOG_LEVEL       4
 #endif
 
+// Example: 09:12:47 | WARN  | message
 
 #if LOG_LEVEL >= DEBUG_LEVEL
 #define LOG_DEBUG(msg, ...)     fprintf(stderr, "%s | DEBUG | "msg"\n", gettime(),  __VA_ARGS__ )
@@ -40,14 +41,14 @@
 #endif
 
 static inline char *gettime() {
-    static char buf[11];
+    static char buf[9];
     time_t rawtime;
     struct tm *timeinfo;
     
     time(&rawtime);
     timeinfo = localtime(&rawtime);
     
-    strftime(buf, 11, "%H:%M:%S", timeinfo);
+    strftime(buf, 9, "%H:%M:%S", timeinfo);
     
     return buf;
 }
