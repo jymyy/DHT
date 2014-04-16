@@ -9,8 +9,8 @@
 #include <netdb.h>
 
 #include "typedefs.h"
-#include "socketio.h"
 #include "dhtpacket.h"
+#include "cmdpacket.h"
 #include "log.h"
 
 #define TAG_SOCKET "Socket IO"
@@ -18,17 +18,22 @@
 /*
  * Send data until all data is sent and return length of sent data
  */
-int sendall(int socket, byte *sendbuf, int packetlen, int flags);
+int sendall(int socket, byte *sendbuf, int packetlen);
 
 /*
  * Receive data until a complete packet is received and return length of received packet
  */
-int recvall(int socket, byte *recvbuf, int bufsize, int flags);
+int recvall(int socket, byte *recvbuf, int bufsize);
+
+/*
+ * Send command to Java
+ */
+int sendcmd(int socket, byte *sendbuf, int cmdlen);
 
 /*
  * Receive command from Java
  */
-int recvcmd(int socket, byte *recvbuf, int bufsize, int flags);
+int recvcmd(int socket, byte *recvbuf, int bufsize);
 
 /*
  * Send handshake and wait for response.

@@ -1,6 +1,6 @@
 #include "dhtpacket.h"
 
-int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key,
+int pack(byte *buf, sha1_t target_key, sha1_t sender_key,
          uint16_t type, byte *payload, uint16_t pl_len) {
 
     memcpy(buf+TARGET_OFFSET, target_key, sizeof(sha1_t));
@@ -17,7 +17,7 @@ int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key,
     return PACKET_HEADER_LEN + pl_len;
 }
 
-struct packet* unpack(byte *buf, int packetlen) {
+struct packet* unpack(byte *buf) {
     // There is a bug/undocumented behaviour in the server.
     // Sometimes when the server sends a packet (usually if it is a
     // DHT_REGISTER_FAKE_ACK) it starts with a single ? character, otherwise
@@ -65,14 +65,24 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
     return 0;
 }
 
-int acquire(int socket, sha1_t key, sha1_t host_key) {
-    byte *buf = malloc(PACKET_HEADER_LEN);
-    int packetlen = pack(buf, PACKET_HEADER_LEN, key, host_key,
-                         DHT_ACQUIRE_REQUEST, NULL, 0);
-    sendall(socket, buf, packetlen, 0);
-    recvall(socket, buf, PACKET_HEADER_LEN, 0);
+int addr_to_pl(byte **pl, struct tcp_addr *addr) {
+    (*pl) = malloc(sizeof(uint16_t) + strlen(addr->addr) + 1);
+    uint16_t port = htons(atoi(addr->port));
+    memcpy((*pl), &port, sizeof(uint16_t));
+    memcpy((*pl)+sizeof(uint16_t), addr->addr, strlen(addr->addr) + 1);
+    return sizeof(uint16_t) + strlen(addr->addr) + 1;
+}
 
-    struct packet *packet = unpack(buf, PACKET_HEADER_LEN);
+int acquire(int socket, sha1_t key, sha1_t host_key) {
+    char str[SHA1_STR_LEN];
+    shatostr(key, str, SHA1_STR_LEN);
+    LOG_INFO(TAG_PACKET, "Requesting lock %s", str);
+    byte *buf = malloc(PACKET_HEADER_LEN);
+    int packetlen = pack(buf, key, host_key, DHT_ACQUIRE_REQUEST, NULL, 0);
+    sendall(socket, buf, packetlen);
+    recvall(socket, buf, PACKET_HEADER_LEN);
+
+    struct packet *packet = unpack(buf);
     if (packet->type != DHT_ACQUIRE_ACK) {
         DIE(TAG_PACKET, "Invalid acquire lock response");
     }
@@ -83,10 +93,12 @@ int acquire(int socket, sha1_t key, sha1_t host_key) {
 }
 
 int release(int socket, sha1_t key, sha1_t host_key) {
+    char str[SHA1_STR_LEN];
+    shatostr(key, str, SHA1_STR_LEN);
+    LOG_INFO(TAG_PACKET, "Releasing lock %s", str);
     byte *buf = malloc(PACKET_HEADER_LEN);
-    int packetlen = pack(buf, PACKET_HEADER_LEN, key, host_key,
-                         DHT_RELEASE_REQUEST, NULL, 0);
-    sendall(socket, buf, packetlen, 0);
+    int packetlen = pack(buf, key, host_key, DHT_RELEASE_REQUEST, NULL, 0);
+    sendall(socket, buf, packetlen);
     free(buf);
 
     return 0;

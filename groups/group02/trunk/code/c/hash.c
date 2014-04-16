@@ -59,10 +59,13 @@ int strtosha(char *str, sha1_t sha) {
     return 0;
 }
 
-int shatostr(sha1_t sha, char* str) {
-    for (int i = 0; i < SHA1_KEY_LEN; i++) {
+int shatostr(sha1_t sha, char* str, int len) {
+    if (len <= 0 || SHA1_STR_LEN < len) {
+        len = SHA1_STR_LEN;
+    }
+    for (int i = 0; i < len/2; i++) {
         snprintf(str+i*2, 3, "%02x", sha[i]);
     }
-    str[SHA1_STR_LEN] = '\0';
+    str[len] = '\0';
     return 0;
 }

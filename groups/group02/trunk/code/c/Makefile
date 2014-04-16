@@ -2,7 +2,7 @@ CFLAGS=-c -g -Wall -std=c99 -D_POSIX_SOURCE -pedantic
 LDFLAGS=-lssl -lcrypto
 CC = gcc
 LD = gcc
-OBJS = dhtnode.o dhtpacket.o hash.o socketio.o fileio.o keyring.o
+OBJS = dhtnode.o dhtpacket.o hash.o socketio.o fileio.o keyring.o cmdpacket.o
 PROG = dhtnode
 
 .c.o:
@@ -30,6 +30,9 @@ fileio.o: fileio.c
 
 keyring.o: keyring.c
 	$(CC) $(CFLAGS) keyring.c
+
+cmdpacket.o: cmdpacket.c
+	$(CC) $(CFLAGS) cmdpacket.c
 
 clean:
 	/bin/rm -f *.o dhtnode keyring hash

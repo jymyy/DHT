@@ -10,13 +10,12 @@
 #define SHA1_KEY_LEN 20
 #define SHA1_STR_LEN 41
 
-// Offset values for packing and unpacking
-#define MAX_PACKET_SIZE 65579 // 65535 + 2 + 2 + 20 + 20
+#define MAX_PACKET_SIZE 65579 // MAX_BLOCK SIZE + PACKET_HEADER_LEN
 #define MAX_BLOCK_SIZE 65535
 
-typedef unsigned char byte;
+typedef uint8_t byte;
 
-typedef unsigned char sha1_t[SHA1_KEY_LEN];
+typedef uint8_t sha1_t[SHA1_KEY_LEN];
 
 struct tcp_addr {
     char port[6];
@@ -36,6 +35,12 @@ struct cmd {
     uint16_t type;
     uint16_t pl_len;
     byte *payload;
+};
+
+struct keyring {
+    sha1_t key;
+    struct keyring *next;
+    struct keyring *previous;
 };
 
 #endif

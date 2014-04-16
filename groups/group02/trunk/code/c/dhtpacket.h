@@ -5,6 +5,7 @@
 #include "dhtpackettypes.h"
 #include "dhtpacket.h"
 #include "socketio.h"
+#include "hash.h"
 #include "log.h"
 
 #define TAG_PACKET "Packet"
@@ -19,18 +20,24 @@
 /*
  * Create packet with given parameters into buf.
  */
-int pack(byte *buf, int buflen, sha1_t target_key, sha1_t sender_key,
+int pack(byte *buf, sha1_t target_key, sha1_t sender_key,
          uint16_t type, byte *payload, uint16_t payload_len);
 
 /*
  * Return packet constructed from data in buffer buf.
  */
-struct packet* unpack(byte *buf, int buflen);
+struct packet* unpack(byte *buf);
 
 /*
  * Build TCP address(es) from payload.
  */
 int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right);
+
+/*
+ * Copy tcp_addr to pl in format suitable to sending as
+ * payload. Pl should be freed after. Return length of data in pl.
+ */
+int addr_to_pl(byte **pl, struct tcp_addr *addr);
 
 /*
  * Acquire lock. Doesn't return until lock is acquired.

@@ -1,9 +1,4 @@
-#include "typedefs.h"
 #include "keyring.h"
-#include "hash.h"
-#include "log.h"
-
-const char *TAG_KEYRING = "Keyring";
 
 int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir) {
     int ord = hashcmp(a, b);

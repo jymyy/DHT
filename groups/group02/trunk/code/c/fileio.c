@@ -5,7 +5,7 @@ int form_path(char *dir, char *fullpath, sha1_t key) {
     if (strlen(dir) + SHA1_STR_LEN > MAX_PATH_LEN) {
         DIE(TAG_FILE, "Directory path too long");
     }
-    shatostr(key, fname);
+    shatostr(key, fname, SHA1_STR_LEN);
     strcpy(fullpath, dir);
     strcat(fullpath, "/");
     strcat(fullpath, fname);

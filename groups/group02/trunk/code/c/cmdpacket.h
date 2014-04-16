@@ -8,21 +8,21 @@
 #define TAG_CMD "Command"
 
 #define CMD_HEADER_LEN 24
-#define KEY_OFFSET 0
-#define TYPE_OFFSET 20
-#define PL_LEN_OFFSET 22
-#define PAYLOAD_OFFSET 24
+#define CMD_KEY_OFFSET 0
+#define CMD_TYPE_OFFSET 20
+#define CMD_PL_LEN_OFFSET 22
+#define CMD_PAYLOAD_OFFSET 24
 
 /*
  * Create command with given parameters into buf.
  */
 int pack_cmd(byte *buf, int buflen, sha1_t key, uint16_t type,
-             byte *payload, uint16_t payload_len);
+             byte *payload, uint16_t pl_len);
 
 /*
  * Return packet constructed from data in buf.
  */
-struct cmd* unpack_cmd(byte *buf, int buflen);
+struct cmd* unpack_cmd(byte *buf);
 
 /*
  * Return name of command type.

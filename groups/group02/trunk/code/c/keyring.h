@@ -2,14 +2,11 @@
 #define KEYRING_H
 
 #include "typedefs.h"
+#include "keyring.h"
+#include "hash.h"
+#include "log.h"
 
-#define KEY_LEN 5
-
-struct keyring {
-    sha1_t key;
-    struct keyring *next;
-    struct keyring *previous;
-};
+#define TAG_KEYRING "Keyring"
 
 /*
  * Calculate the midpoint mid of a and b when traversing to direction
