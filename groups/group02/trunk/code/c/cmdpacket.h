@@ -1,25 +1,32 @@
-#define CMD_PUT 1
-#define CMD_GET 2
-#define CMD_DUMP 3
-#define CMD_TERMINATE 4
-#define CMD_GET_DIR 5
-#define CMD_RELEASE_DIR 6
+#ifndef CMDPACKET_H
+#define CMDPACKET_H
 
-#define CMD_PUT_ACK 11
-#define CMD_GET_ACK 12
-#define CMD_GET_NO_DATA_ACK 13
-#define CMD_DUMP_ACK 14
-#define CMD_TERMINATE_ACK 15
-#define CMD_TERMINATE_DENY 16
-#define CMD_GET_DIR_ACK 17
-#define CMD_RELEASE_DIR_ACK 18
+#include "typedefs.h"
+#include "cmdtypes.h"
+#include "log.h"
 
-#define CMD_REGISTER_ACK 21
-#define CMD_DEREGISTER_ACK 22
-#define CMD_DATA_TRANSFER 23
+#define TAG_CMD "Command"
 
-#define
+#define CMD_HEADER_LEN 24
+#define KEY_OFFSET 0
+#define TYPE_OFFSET 20
+#define PL_LEN_OFFSET 22
+#define PAYLOAD_OFFSET 24
 
-int pack_cmd();
+/*
+ * Create command with given parameters into buf.
+ */
+int pack_cmd(byte *buf, int buflen, sha1_t key, uint16_t type,
+             byte *payload, uint16_t payload_len);
 
-int unpack_cmd();
+/*
+ * Return packet constructed from data in buf.
+ */
+struct cmd* unpack_cmd(byte *buf, int buflen);
+
+/*
+ * Return name of command type.
+ */
+char* cmd_type(int type);
+
+#endif

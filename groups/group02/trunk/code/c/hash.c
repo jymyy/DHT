@@ -1,9 +1,4 @@
-#include <openssl/evp.h>
-
-#include "typedefs.h"
-#include "log.h"
-
-const char *TAG_HASH = "Hash";
+#include "hash.h"
 
 int hash_addr(struct tcp_addr *tcp_addr, sha1_t key) {
     // For some reason hashing port first and then address (using

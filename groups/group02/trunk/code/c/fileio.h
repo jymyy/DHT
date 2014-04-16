@@ -2,6 +2,10 @@
 #define FILEIO_H
 
 #include "typedefs.h"
+#include "hash.h"
+#include "log.h"
+
+#define TAG_FILE "File IO"
 
 /*
  * Write block of length blocklen located in buf to path. The name of the

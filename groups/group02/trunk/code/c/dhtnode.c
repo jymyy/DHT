@@ -17,10 +17,9 @@
 #include "fileio.h"
 #include "hash.h"
 #include "keyring.h"
-
 #include "log.h"
 
-const char *TAG_NODE = "Node";
+#define TAG_NODE "Node"
 
 int create_listen_socket(char *port) {
     int fd;

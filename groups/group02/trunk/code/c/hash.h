@@ -1,7 +1,13 @@
 #ifndef HASH_H
 #define HASH_H
 
+#include <openssl/evp.h>
+#include <netinet/in.h>
+
 #include "typedefs.h"
+#include "log.h"
+
+#define TAG_HASH "Hash"
 
 /*
  * Hash TCP address and put result in key. Return length of the key.

@@ -1,6 +1,20 @@
 #ifndef SOCKETIO_H
 #define SOCKETIO_H
 
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
+#include "typedefs.h"
+#include "socketio.h"
+#include "dhtpacket.h"
+#include "log.h"
+
+#define TAG_SOCKET "Socket IO"
+
 /*
  * Send data until all data is sent and return length of sent data
  */
