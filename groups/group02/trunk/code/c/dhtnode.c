@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     // Status info     
     int status = 0;
     int running = 1;
-    int acks_no = 0;
+    int regs_no = 0;
     int blocks_no = 0; // TODO: Update this
     
     // Address structs and keys
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
         status = select(10, &rfds, NULL, NULL, NULL);
 
         if (status == -1) {
-            DIE(TAG_NODE, "Select failed");
+            LOG_WARN(TAG_NODE, "Select failed");
         } else if (FD_ISSET(cmdsock, &rfds)) {
             // Currently program terminates if it receives q from stdin.
             read(cmdsock, recvbuf, MAX_PACKET_SIZE);
@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
                     case CMD_DUMP:
                         acquire(servsock, cmd->key, host_key);
                         packetlen = pack(sendbuf, cmd->key, host_key,
-                            DHT_PUT_DATA, cmd->payload, cmd->pl_len);
+                            DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
                         sendall(servsock, sendbuf, packetlen);
                         break;
                     case CMD_TERMINATE:
@@ -178,28 +178,27 @@ int main(int argc, char **argv) {
                     case CMD_RELEASE_DIR:
                         break;
                     default:
-                        DIE(TAG_NODE, "Invalid command");
+                        LOG_WARN(TAG_NODE, "Invalid command type %d", cmd->type);
                 }
                 free(cmd->payload);
                 free(cmd);
             }
             
         } else if (FD_ISSET(leftsock, &rfds) || FD_ISSET(rightsock, &rfds)) {
-            int tempsock;
+            int *tempsock;
             if (FD_ISSET(leftsock, &rfds)) {
-                tempsock = leftsock;
-                leftsock = -1;
+                tempsock = &leftsock;
             } else if (FD_ISSET(rightsock, &rfds)) {
-                tempsock = rightsock;
-                rightsock = -1;
+                tempsock = &rightsock;
             }
-            recvall(tempsock, recvbuf, MAX_PACKET_SIZE);
+            recvall(*tempsock, recvbuf, MAX_PACKET_SIZE);
             struct packet *packet = unpack(recvbuf);
             switch (packet->type) {
                 case DHT_TRANSFER_DATA:
                     // Store data received from neighbour
                     add_key(ring, packet->target);
                     write_block(blockdir, packet->target, packet->payload, packet->pl_len);
+                    blocks_no++;
                     break;
                 case DHT_SEND_DATA:
                     // TODO: Send payload to Java
@@ -212,33 +211,36 @@ int main(int argc, char **argv) {
                 case DHT_REGISTER_ACK:
                     // Received all data from neighbour, send DONE to server if
                     // ACK received from both neighbours
-                    acks_no++;
-                    close(tempsock);
-
-                    if (acks_no == 2) {
+                    regs_no++;
+                    if (regs_no == 2) {
                         packetlen = pack(sendbuf, host_key, host_key,
                             DHT_REGISTER_DONE, NULL, 0);
                         sendall(servsock, sendbuf, packetlen);
                         // TODO: Send REG_ACK to Java
                     }
+
+                    close(*tempsock);
+                    *tempsock = -1;
                     break;
                 case DHT_DEREGISTER_ACK:
                     // Received all data from leaving neighbour, acknowledge this to server
-                    close(tempsock);
                     packetlen = pack(sendbuf, packet->sender, host_key,
                         DHT_DEREGISTER_DONE, NULL, 0);
                     sendall(servsock, sendbuf, packetlen);
+
+                    close(*tempsock);
+                    *tempsock = -1;
                     break;
                 default:
-                    LOG_ERROR(TAG_NODE, "Invalid header");
+                    LOG_WARN(TAG_NODE, "Invalid packet type %d", packet->type);
             }
             free(packet->payload);
             free(packet);
 
         } else if (FD_ISSET(servsock, &rfds)) {
+            int tempsock;
             recvall(servsock, recvbuf, MAX_PACKET_SIZE);
             struct packet *packet = unpack(recvbuf);
-            int tempsock;
             struct tcp_addr temp_addr;
             switch (packet->type) {
                 case DHT_REGISTER_FAKE_ACK:
@@ -275,6 +277,7 @@ int main(int argc, char **argv) {
                             sendall(tempsock, sendbuf, packetlen);
                         }
                         rm_block(blockdir, slice_n->key);
+                        blocks_no--;
                     }
                     free_ring(slice);
 
@@ -335,12 +338,14 @@ int main(int argc, char **argv) {
                             DHT_NO_DATA, NULL, 0);
                         sendall(tempsock, sendbuf, packetlen);
                     }
+                    close(tempsock);
     
                     break;
                 case DHT_PUT_DATA:
                     // Some node added data
                     add_key(ring, packet->target);
                     write_block(blockdir, packet->target, packet->payload, packet->pl_len);
+                    blocks_no++;
                     packetlen = pack(sendbuf, packet->target, packet->sender,
                         DHT_PUT_DATA_ACK, NULL, 0);
                     sendall(servsock, sendbuf, packetlen);
@@ -355,6 +360,7 @@ int main(int argc, char **argv) {
                     // Remove data (if exists) and send ACK to server
                     if (!(del_key(ring, packet->target))) {
                         rm_block(blockdir, packet->target);
+                        blocks_no--;
                     }
                     packetlen = pack(sendbuf, packet->target, packet->sender,
                         DHT_DUMP_DATA_ACK, NULL, 0);
@@ -369,27 +375,31 @@ int main(int argc, char **argv) {
                     // Lock was released succesfully
                     break;
                 default:
-                    LOG_ERROR(TAG_NODE, "Invalid packet type");
+                    LOG_WARN(TAG_NODE, "Invalid packet type %d", packet->type);
             }
             free(packet->payload);
             free(packet);
 
         } else if (FD_ISSET(listensock, &rfds)) {
-            // Another node tries to connect
+            // Other node tries to connect
             struct sockaddr_in tempaddr;
             int tempsock;
-            unsigned int addrlen = 0;
+            unsigned int addrlen = sizeof(struct sockaddr_storage);
 
-            if ((tempsock = accept(listensock, (struct sockaddr *)&tempaddr, &addrlen)) == -1) {
+            if ((tempsock = accept(listensock, (struct sockaddr*)&tempaddr, &addrlen)) == -1) {
                 DIE(TAG_NODE, "%s", strerror(errno));
+            }
+
+            if (wait_hs(tempsock) == 0) {
+                cmdsock = tempsock;
             } else if (leftsock == -1) {
                 leftsock = tempsock;
             } else if (leftsock != -1 && rightsock == -1) {
                 rightsock = tempsock;
             } else {
-                DIE(TAG_NODE, "Error accepting new connection");
+                LOG_WARN(TAG_NODE, "Max connections reached");
             }
-            wait_hs(tempsock);
+            
         }
     }
 
@@ -478,6 +488,7 @@ int main(int argc, char **argv) {
                 }
                 rm_block(blockdir, (*slice_n)->key);
                 *slice_n = (*slice_n)->next;
+                blocks_no--;
             } else {
                 packetlen = pack(sendbuf, *temp_key, host_key,
                     DHT_DEREGISTER_ACK, NULL, 0);

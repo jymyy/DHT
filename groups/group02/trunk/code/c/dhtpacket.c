@@ -12,8 +12,18 @@ int pack(byte *buf, sha1_t target_key, sha1_t sender_key,
     if (payload != NULL) {
         memcpy(buf+PAYLOAD_OFFSET, payload, pl_len);
     }
-    
+
     LOG_INFO(TAG_PACKET, "Packed %s", packet_type(type));
+    if (LOG_LEVEL >= DEBUG_LEVEL) {
+        char target_str[SHA1_DEBUG_LEN];
+        char sender_str[SHA1_DEBUG_LEN];
+        shatostr(target_key, target_str, SHA1_DEBUG_LEN);
+        shatostr(sender_key, sender_str, SHA1_DEBUG_LEN);
+    
+        LOG_DEBUG(TAG_PACKET, "Target: %s, sender: %s, length: %d",
+                  target_str, sender_str, pl_len);
+    }
+    
     return PACKET_HEADER_LEN + pl_len;
 }
 
@@ -42,6 +52,15 @@ struct packet* unpack(byte *buf) {
     }
 
     LOG_INFO(TAG_PACKET, "Unpacked %s", packet_type(packet->type));
+    if (LOG_LEVEL >= DEBUG_LEVEL) {
+        char target_str[SHA1_DEBUG_LEN];
+        char sender_str[SHA1_DEBUG_LEN];
+        shatostr(packet->target, target_str, SHA1_DEBUG_LEN);
+        shatostr(packet->sender, sender_str, SHA1_DEBUG_LEN);
+    
+        LOG_DEBUG(TAG_PACKET, "Target: %s, sender: %s, length: %d",
+                  target_str, sender_str, packet->pl_len);
+    }
     return packet;  
 }
 

@@ -5,6 +5,7 @@
 
 #define DHT_CLIENT_SHAKE 0x4121		// A!
 #define DHT_SERVER_SHAKE 0x413f		// A?
+#define DHT_GUI_SHAKE    0x4721     // G!
 
 #define DHT_DEREGISTER_BEGIN 11
 #define DHT_DEREGISTER_ACK 12

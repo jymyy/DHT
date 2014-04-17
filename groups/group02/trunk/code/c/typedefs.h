@@ -9,9 +9,12 @@
 
 #define SHA1_KEY_LEN 20
 #define SHA1_STR_LEN 41
+#define SHA1_DEBUG_LEN 8
 
 #define MAX_PACKET_SIZE 65579 // MAX_BLOCK SIZE + PACKET_HEADER_LEN
 #define MAX_BLOCK_SIZE 65535
+
+#define LOG_LEVEL INFO_LEVEL
 
 typedef uint8_t byte;
 

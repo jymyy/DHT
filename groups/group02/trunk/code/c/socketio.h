@@ -41,7 +41,8 @@ int recvcmd(int socket, byte *recvbuf, int bufsize);
 int init_hs(int socket);
 
 /*
- * Wait for handshake and send response.
+ * Wait for handshake and send response. If received handshake indicates
+ * that socket is connected to GUI return zero, otherwise return socket.
  */
 int wait_hs(int socket);
 

@@ -1,7 +1,7 @@
 #include "socketio.h"
 
 int sendall(int socket, byte *sendbuf, int packetlen) {
-	LOG_INFO(TAG_SOCKET, "Sending to %d", socket);
+	LOG_DEBUG(TAG_SOCKET, "Sending to %d", socket);
 	int bytes_sent = 0;
 	while (bytes_sent < packetlen) {
 		bytes_sent += send(socket, sendbuf+bytes_sent, packetlen-bytes_sent, 0);
@@ -11,7 +11,7 @@ int sendall(int socket, byte *sendbuf, int packetlen) {
 }
 
 int recvall(int socket, byte *recvbuf, int bufsize) {
-	LOG_INFO(TAG_SOCKET, "Receiving from %d", socket);
+	LOG_DEBUG(TAG_SOCKET, "Receiving from %d", socket);
 	int bytes_total = 0;
 	int bytes_received = 0;
 	int bytes_missing = PACKET_HEADER_LEN;
@@ -56,7 +56,7 @@ int recvall(int socket, byte *recvbuf, int bufsize) {
 }
 
 int sendcmd(int socket, byte *sendbuf, int cmdlen) {
-    LOG_INFO(TAG_SOCKET, "Sending command");
+    LOG_DEBUG(TAG_SOCKET, "Sending command");
     int bytes_sent = 0;
     while (bytes_sent < cmdlen) {
         bytes_sent += send(socket, sendbuf+bytes_sent, cmdlen-bytes_sent, 0);
@@ -66,7 +66,7 @@ int sendcmd(int socket, byte *sendbuf, int cmdlen) {
 }
 
 int recvcmd(int socket, byte *recvbuf, int bufsize) {
-    LOG_INFO(TAG_SOCKET, "Receiving command");
+    LOG_DEBUG(TAG_SOCKET, "Receiving command");
     int bytes_total = 0;
     int bytes_received = 0;
     int bytes_missing = CMD_HEADER_LEN;
@@ -104,7 +104,7 @@ int recvcmd(int socket, byte *recvbuf, int bufsize) {
 }
 
 int init_hs(int socket) {
-	LOG_INFO(TAG_SOCKET, "Handshaking with %d", socket);
+	LOG_INFO(TAG_SOCKET, "Handshaking");
 	uint16_t client_shake = htons(DHT_CLIENT_SHAKE);
     uint16_t server_shake = htons(DHT_SERVER_SHAKE);
     uint16_t buf = 0;
@@ -118,16 +118,22 @@ int init_hs(int socket) {
 }
 
 int wait_hs(int socket) {
-	LOG_INFO(TAG_SOCKET, "Waiting for handshake from %d", socket);
+	LOG_INFO(TAG_SOCKET, "Waiting for handshake");
 	uint16_t client_shake = htons(DHT_CLIENT_SHAKE);
     uint16_t server_shake = htons(DHT_SERVER_SHAKE);
+    uint16_t gui_shake = htons(DHT_GUI_SHAKE);
     uint16_t buf = 0;
-    while (buf != client_shake) {
+    while (buf != client_shake && buf != gui_shake) {
     	recv(socket, &buf, 2, 0);
     }
     send(socket, &server_shake, 2, 0);
     LOG_DEBUG(TAG_SOCKET, "Handshake completed");
-    return 0;
+
+    if (buf == client_shake) {
+        return socket;
+    } else {
+        return 0;
+    }
 }
 
 int open_conn(int *sock, struct tcp_addr *addr) {
