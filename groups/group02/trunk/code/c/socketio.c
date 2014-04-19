@@ -1,6 +1,6 @@
 #include "socketio.h"
 
-int _sendall(int socket, byte *sendbuf, int packetlen) {
+int _sendpacket(int socket, byte *sendbuf, int packetlen) {
 	LOG_DEBUG(TAG_SOCKET, "Sending to %d", socket);
 	int bytes_sent = 0;
 	while (bytes_sent < packetlen) {
@@ -156,5 +156,30 @@ int open_conn(int *sock, struct tcp_addr *addr) {
     freeaddrinfo(info);
     LOG_DEBUG(TAG_SOCKET, "Connection opened");
     return 0;
+}
+
+int create_listen_socket(char *port) {
+    int fd;
+    int t;
+
+    struct sockaddr_in a;
+
+    a.sin_addr.s_addr = INADDR_ANY;
+    a.sin_family = AF_INET;
+    a.sin_port = htons(atoi(port));
+
+    fd = socket(PF_INET, SOCK_STREAM, 0);
+    if (fd == -1)
+        DIE(TAG_SOCKET, "%s", strerror(errno));
+
+    t = bind(fd, (struct sockaddr *)(&a), sizeof(struct sockaddr_in));
+    if (t == -1)
+        DIE(TAG_SOCKET, "%s", strerror(errno));
+
+    t = listen(fd, MAX_CONNECTIONS);
+    if (t == -1)
+        DIE(TAG_SOCKET, "%s", strerror(errno));        
+
+    return fd;
 }
 

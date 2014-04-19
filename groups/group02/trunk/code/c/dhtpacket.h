@@ -40,19 +40,9 @@ int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right)
 int addr_to_pl(byte **pl, struct tcp_addr *addr);
 
 /*
- * Acquire lock. Doesn't return until lock is acquired.
- */
-int acquire(int socket, sha1_t key, sha1_t host_key);
-
-/*
- * Release lock.
- */
-int release(int socket, sha1_t key, sha1_t host_key);
-
-/*
  * Return name of packet type.
  */
-char* packet_type(int type);
+char* packettostr(int type);
 
 #endif
 

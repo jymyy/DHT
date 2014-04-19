@@ -13,7 +13,7 @@ int pack(byte *buf, sha1_t target_key, sha1_t sender_key,
         memcpy(buf+PAYLOAD_OFFSET, payload, pl_len);
     }
 
-    LOG_INFO(TAG_PACKET, "Packed %s", packet_type(type));
+    LOG_INFO(TAG_PACKET, "Packed %s", packettostr(type));
     if (LOG_LEVEL >= DEBUG_LEVEL) {
         char target_str[SHA1_DEBUG_LEN];
         char sender_str[SHA1_DEBUG_LEN];
@@ -51,7 +51,7 @@ struct packet* unpack(byte *buf) {
         packet->payload = NULL;
     }
 
-    LOG_INFO(TAG_PACKET, "Unpacked %s", packet_type(packet->type));
+    LOG_INFO(TAG_PACKET, "Unpacked %s", packettostr(packet->type));
     if (LOG_LEVEL >= DEBUG_LEVEL) {
         char target_str[SHA1_DEBUG_LEN];
         char sender_str[SHA1_DEBUG_LEN];
@@ -92,41 +92,7 @@ int addr_to_pl(byte **pl, struct tcp_addr *addr) {
     return sizeof(uint16_t) + strlen(addr->addr) + 1;
 }
 
-int acquire(int socket, sha1_t key, sha1_t host_key) {
-    char str[SHA1_STR_LEN];
-    shatostr(key, str, SHA1_STR_LEN);
-    LOG_INFO(TAG_PACKET, "Requesting lock %s", str);
-    byte *buf = malloc(PACKET_HEADER_LEN);
-    //int packetlen = pack(buf, key, host_key, DHT_ACQUIRE_REQUEST, NULL, 0);
-    sendall(socket, buf, key, host_key,
-            DHT_ACQUIRE_REQUEST, NULL, 0);
-    recvall(socket, buf, PACKET_HEADER_LEN);
-
-    struct packet *packet = unpack(buf);
-    if (packet->type != DHT_ACQUIRE_ACK) {
-        DIE(TAG_PACKET, "Invalid acquire lock response");
-    }
-    free(packet);
-    free(buf);
-
-    return 0;
-}
-
-int release(int socket, sha1_t key, sha1_t host_key) {
-    char str[SHA1_STR_LEN];
-    shatostr(key, str, SHA1_STR_LEN);
-    LOG_INFO(TAG_PACKET, "Releasing lock %s", str);
-    byte *buf = malloc(PACKET_HEADER_LEN);
-    //int packetlen = pack(buf, key, host_key, DHT_RELEASE_REQUEST, NULL, 0);
-    sendall(socket, buf, key, host_key,
-            DHT_RELEASE_REQUEST, NULL, 0);
-    free(buf);
-
-    return 0;
-}
-
-
-char* packet_type(int type) {
+char* packettostr(int type) {
     
     switch (type) {
         case 1:

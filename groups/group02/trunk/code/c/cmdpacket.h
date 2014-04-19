@@ -27,6 +27,6 @@ struct cmd* unpack_cmd(byte *buf);
 /*
  * Return name of command type.
  */
-char* cmd_type(int type);
+char* cmdtostr(int type);
 
 #endif

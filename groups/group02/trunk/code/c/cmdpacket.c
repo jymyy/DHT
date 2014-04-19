@@ -10,7 +10,7 @@ int pack_cmd(byte *buf, sha1_t key, uint16_t type,
         memcpy(buf+CMD_PAYLOAD_OFFSET, payload, pl_len);
     }
     
-    LOG_INFO(TAG_CMD, "Packed command %s", cmd_type(type));
+    LOG_INFO(TAG_CMD, "Packed command %s", cmdtostr(type));
     return CMD_HEADER_LEN + pl_len;
 }
 
@@ -27,14 +27,50 @@ struct cmd* unpack_cmd(byte *buf) {
         cmd->payload = NULL;
     }
 
-    LOG_INFO(TAG_CMD, "Unpacked command %s", cmd_type(cmd->type));
+    LOG_INFO(TAG_CMD, "Unpacked command %s", cmdtostr(cmd->type));
     return cmd;  
 }
 
-char* cmd_type(int type) {
+char* cmdtostr(int type) {
     switch (type) {
+
         case CMD_PUT_DATA:
             return "CMD_PUT_DATA";
+        case CMD_GET_DATA:
+            return "CMD_GET_DATA";
+        case CMD_DUMP_DATA:
+            return "CMD_DUMP_DAT";
+        case CMD_TERMINATE:
+            return "CMD_TERMINATE";
+        case CMD_ACQUIRE_REQUEST:
+            return "CMD_ACQUIRE_REQUEST";
+        case CMD_RELEASE_REQUEST:
+            return "CMD_RELEASE_REQUEST";
+
+        case CMD_PUT_DATA_ACK:
+            return "CMD_PUT_DATA_ACK";
+        case CMD_GET_DATA_ACK:
+            return "CMD_GET_DATA_ACK";
+        case CMD_GET_NO_DATA_ACK:
+            return "CMD_GET_NO_DATA_ACK";
+        case CMD_DUMP_DATA_ACK:
+            return "CMD_DUMP_DATA_ACK";
+        case CMD_TERMINATE_ACK:
+            return "CMD_TERMINATE_ACK";
+        case CMD_TERMINATE_DENY:
+            return "CMD_TERMINATE_DENY";
+        case CMD_ACQUIRE_ACK:
+            return "CMD_ACQUIRE_ACK";
+        case CMD_RELEASE_ACK:
+            return "CMD_RELEASE_ACK";
+
+        case CMD_REGISTER_DONE:
+            return "CMD_REGISTER_DONE";
+        case CMD_DEREGISTER_DONE:
+            return "CMD_DEREGISTER_DONE";
+        case CMD_BLOCKS_MAINTAINED:
+            return "CMD_BLOCKS_MAINTAINED";
+
         default:
             return "CMD_UNKNOWN";
     }

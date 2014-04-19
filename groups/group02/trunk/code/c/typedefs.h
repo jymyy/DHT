@@ -9,12 +9,14 @@
 
 #define SHA1_KEY_LEN 20
 #define SHA1_STR_LEN 41
-#define SHA1_DEBUG_LEN 8
 
 #define MAX_PACKET_SIZE 65579 // MAX_BLOCK SIZE + PACKET_HEADER_LEN
 #define MAX_BLOCK_SIZE 65535
 
-#define LOG_LEVEL INFO_LEVEL
+// Options
+#define LOG_LEVEL DEBUG_LEVEL   // Levels: ZERO, ERROR, WARN, INFO, DEBUG
+#define SHA1_DEBUG_LEN 8        // Length of printed SHA1 strings
+#define CMD_USE_STDIN 1         // Read commands from stdin
 
 typedef uint8_t byte;
 

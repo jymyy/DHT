@@ -6,13 +6,14 @@
 #include <string.h>
 #include <time.h>
 
+#define ZERO_LEVEL      0
 #define ERROR_LEVEL     1
 #define WARN_LEVEL      2
 #define INFO_LEVEL      3
 #define DEBUG_LEVEL     4
 
 #ifndef LOG_LEVEL
-#define LOG_LEVEL       4
+#define LOG_LEVEL       DEBUG_LEVEL
 #endif
 
 // Example:
