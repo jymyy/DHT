@@ -15,10 +15,26 @@
 
 #define TAG_SOCKET "Socket IO"
 
+#define sendall(socket, buf, target, sender, type, payload, pl_len) \
+do {                                                                \
+    int packetlen = pack(buf, target, sender,                       \
+        type, payload, pl_len);                                     \
+    _sendall(socket, buf, packetlen);                               \
+} while (0)
+
+#define sendcmd(socket, buf, key, type, payload, pl_len)    \
+do {                                                        \
+    int packetlen = pack_cmd(buf, key,                      \
+        type, payload, pl_len);                             \
+    _sendcmd(socket, buf, packetlen);                       \
+} while (0)
+
+
+
 /*
  * Send data until all data is sent and return length of sent data
  */
-int sendall(int socket, byte *sendbuf, int packetlen);
+int _sendall(int socket, byte *sendbuf, int packetlen);
 
 /*
  * Receive data until a complete packet is received and return length of received packet
@@ -28,7 +44,7 @@ int recvall(int socket, byte *recvbuf, int bufsize);
 /*
  * Send command to Java
  */
-int sendcmd(int socket, byte *sendbuf, int cmdlen);
+int _sendcmd(int socket, byte *sendbuf, int cmdlen);
 
 /*
  * Receive command from Java

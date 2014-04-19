@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     int status = 0;
     int running = 1;
     int regs_no = 0;
-    int blocks_no = 0; // TODO: Update this
+    int blocks_no = 0;
     
     // Address structs and keys
     struct tcp_addr host_addr;
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
     memset(sendbuf, 0, MAX_PACKET_SIZE);
     memset(recvbuf, 0, MAX_PACKET_SIZE);
     memset(blockbuf, 0, MAX_BLOCK_SIZE);
-    int packetlen = 0;
+    //int packetlen = 0;
     int blocklen = 0;
 
     // Connect to server
@@ -108,9 +108,10 @@ int main(int argc, char **argv) {
     // Send DHT_REGISTER_BEGIN
     byte *host_addr_pl = NULL;
     int host_addr_pl_len = addr_to_pl(&host_addr_pl, &host_addr);
-    packetlen = pack(sendbuf, serv_key, host_key,
-       DHT_REGISTER_BEGIN, host_addr_pl, host_addr_pl_len);
-    sendall(servsock, sendbuf, packetlen);
+    //packetlen = pack(sendbuf, serv_key, host_key,
+    //   DHT_REGISTER_BEGIN, host_addr_pl, host_addr_pl_len);
+    sendall(servsock, sendbuf, serv_key, host_key,
+            DHT_REGISTER_BEGIN, host_addr_pl, host_addr_pl_len);
     
     // Start main loop (connection sequence isn't actually
     // finished at this point)
@@ -142,40 +143,45 @@ int main(int argc, char **argv) {
             read(cmdsock, recvbuf, MAX_PACKET_SIZE);
             if (recvbuf[0] == 'q') {
                 LOG_INFO(TAG_NODE, "Requesting permission to leave");
-                packetlen = pack(sendbuf, host_key, host_key,
-                    DHT_DEREGISTER_BEGIN, NULL, 0);
-                sendall(servsock, sendbuf, packetlen);
+                //packetlen = pack(sendbuf, host_key, host_key,
+                //    DHT_DEREGISTER_BEGIN, NULL, 0);
+                sendall(servsock, sendbuf, host_key, host_key,
+                        DHT_DEREGISTER_BEGIN, NULL, 0);
             } else {
                 recvcmd(cmdsock, recvbuf, MAX_PACKET_SIZE);
                 struct cmd *cmd = unpack_cmd(recvbuf);
                 switch (cmd->type) {
-                    case CMD_PUT:
+                    case CMD_PUT_DATA:
                         acquire(servsock, cmd->key, host_key);
-                        packetlen = pack(sendbuf, cmd->key, host_key,
-                            DHT_PUT_DATA, cmd->payload, cmd->pl_len);
-                        sendall(servsock, sendbuf, packetlen);
+                        //packetlen = pack(sendbuf, cmd->key, host_key,
+                        //    DHT_PUT_DATA, cmd->payload, cmd->pl_len);
+                        sendall(servsock, sendbuf, cmd->key, host_key,
+                                DHT_PUT_DATA, cmd->payload, cmd->pl_len);
                         break;
-                    case CMD_GET:
+                    case CMD_GET_DATA:
                         acquire(servsock, cmd->key, host_key);
-                        packetlen = pack(sendbuf, cmd->key, host_key,
-                            DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
-                        sendall(servsock, sendbuf, packetlen);
+                        //packetlen = pack(sendbuf, cmd->key, host_key,
+                        //    DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
+                        sendall(servsock, sendbuf, cmd->key, host_key,
+                                DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
                         break;
-                    case CMD_DUMP:
+                    case CMD_DUMP_DATA:
                         acquire(servsock, cmd->key, host_key);
-                        packetlen = pack(sendbuf, cmd->key, host_key,
-                            DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
-                        sendall(servsock, sendbuf, packetlen);
+                        //packetlen = pack(sendbuf, cmd->key, host_key,
+                        //    DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
+                        sendall(servsock, sendbuf, cmd->key, host_key,
+                                DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
                         break;
                     case CMD_TERMINATE:
                         LOG_INFO(TAG_NODE, "Requesting permission to leave");
-                        packetlen = pack(sendbuf, host_key, host_key,
-                            DHT_DEREGISTER_BEGIN, NULL, 0);
-                        sendall(servsock, sendbuf, packetlen);
+                        //packetlen = pack(sendbuf, host_key, host_key,
+                        //    DHT_DEREGISTER_BEGIN, NULL, 0);
+                        sendall(servsock, sendbuf, host_key, host_key,
+                                DHT_DEREGISTER_BEGIN, NULL, 0);
                         break;
-                    case CMD_GET_DIR:
+                    case CMD_GET_AND_LOCK:
                         break;
-                    case CMD_RELEASE_DIR:
+                    case CMD_PUT_AND_UNLOCK:
                         break;
                     default:
                         LOG_WARN(TAG_NODE, "Invalid command type %d", cmd->type);
@@ -201,22 +207,35 @@ int main(int argc, char **argv) {
                     blocks_no++;
                     break;
                 case DHT_SEND_DATA:
-                    // TODO: Send payload to Java
+                    // Send payload to Java
+                    //packetlen = pack_cmd(sendbuf, packet->target,
+                    //    CMD_GET_DATA_ACK, packet->payload, packet->pl_len);
+                    sendcmd(cmdsock, sendbuf, packet->target,
+                            CMD_GET_DATA_ACK, packet->payload, packet->pl_len);
                     release(servsock, packet->target, host_key);
                     break;
                 case DHT_NO_DATA:
-                    // TODO: Inform Java that no data was found
+                    // Inform Java that no data was found
+                    //packetlen = pack_cmd(sendbuf, packet->target,
+                    //    CMD_GET_NO_DATA_ACK, NULL, 0);
+                    sendcmd(cmdsock, sendbuf, packet->target,
+                            CMD_GET_NO_DATA_ACK, NULL, 0);
                     release(servsock, packet->target, host_key);
                     break;
                 case DHT_REGISTER_ACK:
-                    // Received all data from neighbour, send DONE to server if
-                    // ACK received from both neighbours
+                    // Received all data from neighbour. Send DONE to server if
+                    // ACK received from both neighbours and inform Java.
                     regs_no++;
                     if (regs_no == 2) {
-                        packetlen = pack(sendbuf, host_key, host_key,
-                            DHT_REGISTER_DONE, NULL, 0);
-                        sendall(servsock, sendbuf, packetlen);
-                        // TODO: Send REG_ACK to Java
+                        //packetlen = pack(sendbuf, host_key, host_key,
+                        //    DHT_REGISTER_DONE, NULL, 0);
+                        sendall(servsock, sendbuf, host_key, host_key,
+                                DHT_REGISTER_DONE, NULL, 0);
+
+                        //packetlen = pack_cmd(sendbuf, host_key,
+                        //    CMD_REGISTER_DONE, NULL, 0);
+                        sendcmd(cmdsock, sendbuf, host_key,
+                                CMD_REGISTER_DONE, NULL, 0);
                     }
 
                     close(*tempsock);
@@ -224,9 +243,10 @@ int main(int argc, char **argv) {
                     break;
                 case DHT_DEREGISTER_ACK:
                     // Received all data from leaving neighbour, acknowledge this to server
-                    packetlen = pack(sendbuf, packet->sender, host_key,
-                        DHT_DEREGISTER_DONE, NULL, 0);
-                    sendall(servsock, sendbuf, packetlen);
+                    //packetlen = pack(sendbuf, packet->sender, host_key,
+                    //    DHT_DEREGISTER_DONE, NULL, 0);
+                    sendall(servsock, sendbuf, packet->sender, host_key,
+                            DHT_DEREGISTER_DONE, NULL, 0);
 
                     close(*tempsock);
                     *tempsock = -1;
@@ -245,10 +265,15 @@ int main(int argc, char **argv) {
             switch (packet->type) {
                 case DHT_REGISTER_FAKE_ACK:
                     // First node in network
-                    packetlen = pack(sendbuf, host_key, host_key,
-                       DHT_REGISTER_DONE, NULL, 0);
-                    sendall(servsock, sendbuf, packetlen);
-                    // TODO: Send REG_ACK to Java
+                    //packetlen = pack(sendbuf, host_key, host_key,
+                    //   DHT_REGISTER_DONE, NULL, 0);
+                    sendall(servsock, sendbuf, host_key, host_key,
+                            DHT_REGISTER_DONE, NULL, 0);
+                    
+                    //packetlen = pack_cmd(sendbuf, host_key,
+                    //    CMD_REGISTER_DONE, NULL, 0);
+                    sendcmd(cmdsock, sendbuf, host_key,
+                            CMD_REGISTER_DONE, NULL, 0);
                     break;
                 case DHT_REGISTER_BEGIN:
                     // New node is trying to join, connect and send data
@@ -272,9 +297,10 @@ int main(int argc, char **argv) {
                     while (slice_n != NULL) {
                         blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
                         if (blocklen > 0) {
-                            packetlen = pack(sendbuf, slice_n->key, host_key,
-                               DHT_TRANSFER_DATA, blockbuf, blocklen);
-                            sendall(tempsock, sendbuf, packetlen);
+                            //packetlen = pack(sendbuf, slice_n->key, host_key,
+                            //   DHT_TRANSFER_DATA, blockbuf, blocklen);
+                            sendall(tempsock, sendbuf, slice_n->key, host_key,
+                                    DHT_TRANSFER_DATA, blockbuf, blocklen);
                         }
                         rm_block(blockdir, slice_n->key);
                         blocks_no--;
@@ -282,9 +308,10 @@ int main(int argc, char **argv) {
                     free_ring(slice);
 
                     // Send ACK to new node to inform that all data is sent
-                    packetlen = pack(sendbuf, nb_key, nb_key,
-                        DHT_REGISTER_ACK, NULL, 0);
-                    sendall(tempsock, sendbuf, packetlen);
+                    //packetlen = pack(sendbuf, nb_key, nb_key,
+                    //    DHT_REGISTER_ACK, NULL, 0);
+                    sendall(tempsock, sendbuf, nb_key, nb_key,
+                            DHT_REGISTER_ACK, NULL, 0);
                     close(tempsock);
                     break;
                 case DHT_REGISTER_DONE:
@@ -293,9 +320,10 @@ int main(int argc, char **argv) {
                     break;
                 case DHT_DEREGISTER_BEGIN:
                     // A node leaves abnormally
-                    packetlen = pack(sendbuf, packet->sender, host_key,
-                        DHT_DEREGISTER_DONE, NULL, 0);
-                    sendall(servsock, sendbuf, packetlen);
+                    //packetlen = pack(sendbuf, packet->sender, host_key,
+                    //    DHT_DEREGISTER_DONE, NULL, 0);
+                    sendall(servsock, sendbuf, packet->sender, host_key,
+                            DHT_DEREGISTER_DONE, NULL, 0);
                     break;
                 case DHT_DEREGISTER_ACK:
                     // Server has responded to our attempt to leave, create connections to both neighbours
@@ -310,11 +338,20 @@ int main(int argc, char **argv) {
                     open_conn(&rightsock, &right_addr);
                     init_hs(rightsock);
 
+                    // Inform Java
+                    //packetlen = pack_cmd(sendbuf, packet->target,
+                    //    CMD_TERMINATE_ACK, NULL, 0);
+                    sendcmd(cmdsock, sendbuf, packet->target,
+                            CMD_TERMINATE_ACK, NULL, 0);
+
                     running = 0;
                     break;
                 case DHT_DEREGISTER_DENY:
-                    // Disconnection attempt denied
-                    // TODO: Inform Java
+                    // Disconnection attempt denied, inform Java
+                    //packetlen = pack_cmd(sendbuf, packet->target,
+                    //    CMD_TERMINATE_DENY, NULL, 0);
+                    sendcmd(cmdsock, sendbuf, packet->target,
+                            CMD_TERMINATE_DENY, NULL, 0);
                     LOG_WARN(TAG_NODE, "Request to leave denied");
                     break;
                 case DHT_GET_DATA:
@@ -329,14 +366,16 @@ int main(int argc, char **argv) {
                     if (has_key(ring, packet->target)) {
                         blocklen = read_block(blockdir, packet->target, blockbuf, MAX_BLOCK_SIZE);
                         if (blocklen > 0) {
-                            packetlen = pack(sendbuf, packet->target, host_key,
-                                DHT_SEND_DATA, blockbuf, blocklen);
-                            sendall(tempsock, sendbuf, packetlen);
+                            //packetlen = pack(sendbuf, packet->target, host_key,
+                            //    DHT_SEND_DATA, blockbuf, blocklen);
+                            sendall(tempsock, sendbuf, packet->target, host_key,
+                                    DHT_SEND_DATA, blockbuf, blocklen);
                         }
                     } else {
-                        packetlen = pack(sendbuf, packet->target, host_key,
-                            DHT_NO_DATA, NULL, 0);
-                        sendall(tempsock, sendbuf, packetlen);
+                        //packetlen = pack(sendbuf, packet->target, host_key,
+                        //    DHT_NO_DATA, NULL, 0);
+                        sendall(tempsock, sendbuf, packet->target, host_key,
+                                DHT_NO_DATA, NULL, 0);
                     }
                     close(tempsock);
     
@@ -346,13 +385,17 @@ int main(int argc, char **argv) {
                     add_key(ring, packet->target);
                     write_block(blockdir, packet->target, packet->payload, packet->pl_len);
                     blocks_no++;
-                    packetlen = pack(sendbuf, packet->target, packet->sender,
-                        DHT_PUT_DATA_ACK, NULL, 0);
-                    sendall(servsock, sendbuf, packetlen);
+                    //packetlen = pack(sendbuf, packet->target, packet->sender,
+                    //    DHT_PUT_DATA_ACK, NULL, 0);
+                    sendall(servsock, sendbuf, packet->target, packet->sender,
+                            DHT_PUT_DATA_ACK, NULL, 0);
                     break;
                 case DHT_PUT_DATA_ACK:
                     // Data added successfully
-                    // TODO: Send OK to Java
+                    //packetlen = pack_cmd(sendbuf, packet->target,
+                    //    CMD_PUT_DATA_ACK, NULL, 0);
+                    sendcmd(cmdsock, sendbuf, packet->target,
+                            CMD_PUT_DATA_ACK, NULL, 0);
                     release(servsock, packet->target, host_key);
                     break;
                 case DHT_DUMP_DATA:
@@ -362,13 +405,17 @@ int main(int argc, char **argv) {
                         rm_block(blockdir, packet->target);
                         blocks_no--;
                     }
-                    packetlen = pack(sendbuf, packet->target, packet->sender,
-                        DHT_DUMP_DATA_ACK, NULL, 0);
-                    sendall(servsock, sendbuf, packetlen);
+                    //packetlen = pack(sendbuf, packet->target, packet->sender,
+                    //    DHT_DUMP_DATA_ACK, NULL, 0);
+                    sendall(servsock, sendbuf, packet->target, packet->sender,
+                            DHT_DUMP_DATA_ACK, NULL, 0);
                     break;
                 case DHT_DUMP_DATA_ACK:
                     // Our request to remove data was succesful
-                    // TODO: Send OK to Java
+                    //packetlen = pack_cmd(sendbuf, packet->target,
+                    //    CMD_PUT_DATA_ACK, NULL, 0);
+                    sendcmd(cmdsock, sendbuf, packet->target,
+                            CMD_PUT_DATA_ACK, NULL, 0);
                     release(servsock, packet->target, host_key);
                     break;
                 case DHT_RELEASE_ACK:
@@ -449,20 +496,23 @@ int main(int argc, char **argv) {
         } else if (FD_ISSET(servsock, &rfds)) {
             recvall(servsock, recvbuf, MAX_PACKET_SIZE);
             struct packet *packet = unpack(recvbuf);
-            switch (packet->type) {
-                case DHT_DEREGISTER_DONE:
+            if (packet->type == DHT_DEREGISTER_DONE) {
                     // Simply leave after receiving confirmations from
                     // both neighbours
                     deregs_no++;
                     if (deregs_no == 2) {
+                        //packetlen = pack_cmd(sendbuf, packet->target,
+                        //    CMD_DEREGISTER_DONE, NULL, 0);
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_DEREGISTER_DONE, NULL, 0);
                         disconnecting = 0;
-                        // TODO: Send DEREG_ACK to Java
                     }
                     free(packet->payload);
                     free(packet);
-                    break;
-                default:
-                    DIE(TAG_NODE, "Invalid packet type");
+
+                    
+            } else {
+                LOG_WARN(TAG_NODE, "Invalid packet type %d", packet->type);
             }
         } else {
             if (FD_ISSET(leftsock, &wfds)) {
@@ -482,22 +532,29 @@ int main(int argc, char **argv) {
             if (*slice_n != NULL) {
                 blocklen = read_block(blockdir, (*slice_n)->key, blockbuf, MAX_BLOCK_SIZE);
                 if (blocklen > 0) {
-                    packetlen = pack(sendbuf, (*slice_n)->key, host_key,
-                        DHT_TRANSFER_DATA, blockbuf, blocklen);
-                    sendall(*tempsock, sendbuf, packetlen);
+                    //packetlen = pack(sendbuf, (*slice_n)->key, host_key,
+                    //    DHT_TRANSFER_DATA, blockbuf, blocklen);
+                    sendall(*tempsock, sendbuf, (*slice_n)->key, host_key,
+                            DHT_TRANSFER_DATA, blockbuf, blocklen);
                 }
                 rm_block(blockdir, (*slice_n)->key);
                 *slice_n = (*slice_n)->next;
                 blocks_no--;
             } else {
-                packetlen = pack(sendbuf, *temp_key, host_key,
-                    DHT_DEREGISTER_ACK, NULL, 0);
-                sendall(*tempsock, sendbuf, packetlen);
+                //packetlen = pack(sendbuf, *temp_key, host_key,
+                //    DHT_DEREGISTER_ACK, NULL, 0);
+                sendall(*tempsock, sendbuf, *temp_key, host_key,
+                        DHT_DEREGISTER_ACK, NULL, 0);
                 close(*tempsock);
                 *tempsock = -1;
                 free_ring(slice);
             }
-            // TODO: Send DATA_TRANSFER to Java
+
+            // Inform Java about number of blocks still maintained
+            //packetlen = pack_cmd(sendbuf, host_key,
+            //    CMD_BLOCKS_MAINTAINED, (byte *)&blocks_no, sizeof(int));
+            sendcmd(cmdsock, sendbuf, host_key,
+                    CMD_BLOCKS_MAINTAINED, (byte *)&blocks_no, sizeof(int));
         }
     }
 

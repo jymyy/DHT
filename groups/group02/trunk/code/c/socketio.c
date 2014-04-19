@@ -1,6 +1,6 @@
 #include "socketio.h"
 
-int sendall(int socket, byte *sendbuf, int packetlen) {
+int _sendall(int socket, byte *sendbuf, int packetlen) {
 	LOG_DEBUG(TAG_SOCKET, "Sending to %d", socket);
 	int bytes_sent = 0;
 	while (bytes_sent < packetlen) {
@@ -55,7 +55,7 @@ int recvall(int socket, byte *recvbuf, int bufsize) {
 	return bytes_total;
 }
 
-int sendcmd(int socket, byte *sendbuf, int cmdlen) {
+int _sendcmd(int socket, byte *sendbuf, int cmdlen) {
     LOG_DEBUG(TAG_SOCKET, "Sending command");
     int bytes_sent = 0;
     while (bytes_sent < cmdlen) {

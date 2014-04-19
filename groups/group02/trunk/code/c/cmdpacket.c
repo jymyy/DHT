@@ -1,6 +1,6 @@
 #include "cmdpacket.h"
 
-int pack_cmd(byte *buf, int buflen, sha1_t key, uint16_t type,
+int pack_cmd(byte *buf, sha1_t key, uint16_t type,
              byte *payload, uint16_t pl_len) {
 
     memcpy(buf+CMD_KEY_OFFSET, key, sizeof(sha1_t));
@@ -33,8 +33,8 @@ struct cmd* unpack_cmd(byte *buf) {
 
 char* cmd_type(int type) {
     switch (type) {
-        case CMD_PUT:
-            return "CMD_PUT";
+        case CMD_PUT_DATA:
+            return "CMD_PUT_DATA";
         default:
             return "CMD_UNKNOWN";
     }

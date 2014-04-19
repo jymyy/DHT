@@ -16,7 +16,7 @@
 /*
  * Create command with given parameters into buf.
  */
-int pack_cmd(byte *buf, int buflen, sha1_t key, uint16_t type,
+int pack_cmd(byte *buf, sha1_t key, uint16_t type,
              byte *payload, uint16_t pl_len);
 
 /*

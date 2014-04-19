@@ -97,8 +97,9 @@ int acquire(int socket, sha1_t key, sha1_t host_key) {
     shatostr(key, str, SHA1_STR_LEN);
     LOG_INFO(TAG_PACKET, "Requesting lock %s", str);
     byte *buf = malloc(PACKET_HEADER_LEN);
-    int packetlen = pack(buf, key, host_key, DHT_ACQUIRE_REQUEST, NULL, 0);
-    sendall(socket, buf, packetlen);
+    //int packetlen = pack(buf, key, host_key, DHT_ACQUIRE_REQUEST, NULL, 0);
+    sendall(socket, buf, key, host_key,
+            DHT_ACQUIRE_REQUEST, NULL, 0);
     recvall(socket, buf, PACKET_HEADER_LEN);
 
     struct packet *packet = unpack(buf);
@@ -116,8 +117,9 @@ int release(int socket, sha1_t key, sha1_t host_key) {
     shatostr(key, str, SHA1_STR_LEN);
     LOG_INFO(TAG_PACKET, "Releasing lock %s", str);
     byte *buf = malloc(PACKET_HEADER_LEN);
-    int packetlen = pack(buf, key, host_key, DHT_RELEASE_REQUEST, NULL, 0);
-    sendall(socket, buf, packetlen);
+    //int packetlen = pack(buf, key, host_key, DHT_RELEASE_REQUEST, NULL, 0);
+    sendall(socket, buf, key, host_key,
+            DHT_RELEASE_REQUEST, NULL, 0);
     free(buf);
 
     return 0;
