@@ -112,26 +112,29 @@ int init_hs(int socket) {
     while (buf != server_shake) {
     	recv(socket, &buf, 2, 0);
     }
-    LOG_DEBUG(TAG_SOCKET, "Handshake completed");
+    LOG_DEBUG(TAG_SOCKET, "Handshake completed with %d", socket);
     return 0;
-
 }
 
 int wait_hs(int socket) {
-	LOG_INFO(TAG_SOCKET, "Waiting for handshake");
+	LOG_INFO(TAG_SOCKET, "Handshaking");
 	uint16_t client_shake = htons(DHT_CLIENT_SHAKE);
     uint16_t server_shake = htons(DHT_SERVER_SHAKE);
-    uint16_t gui_shake = CMD_GUI_SHAKE;
+    uint16_t gui_shake = htons(CMD_GUI_SHAKE);
+    uint16_t node_shake = htons(CMD_NODE_SHAKE);
     uint16_t buf = 0;
+
     while (buf != client_shake && buf != gui_shake) {
     	recv(socket, &buf, 2, 0);
     }
-    send(socket, &server_shake, 2, 0);
-    LOG_DEBUG(TAG_SOCKET, "Handshake completed");
 
     if (buf == client_shake) {
+        send(socket, &server_shake, 2, 0);
+        LOG_DEBUG(TAG_SOCKET, "Handshake completed with %d", socket);
         return socket;
     } else {
+        send(socket, &node_shake, 2, 0);
+        LOG_DEBUG(TAG_SOCKET, "Handshake completed with GUI");
         return 0;
     }
 }

@@ -21,4 +21,5 @@
 #define CMD_DEREGISTER_DONE 22
 #define CMD_BLOCKS_MAINTAINED 23
 
-#define CMD_GUI_SHAKE    0x4721     // G!
+#define CMD_GUI_SHAKE 0x4721    // G!
+#define CMD_NODE_SHAKE 0x473f   // G?

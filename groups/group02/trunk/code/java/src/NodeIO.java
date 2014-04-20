@@ -6,9 +6,12 @@ import java.io.OutputStream;
 import java.net.*;
 
 public class NodeIO {
+	public static String TAG = "NodeIO";
+
 	boolean printSends = true;
-	
-	String initConnCmd = "G!";
+
+	byte[] toNodeShake = new byte[] {0x47, 0x21};
+	byte[] fromNodeShake = new byte[] {0x47, 0x3f};
 	
 	DHTController controller;
 	Socket nodeSoc;
@@ -18,7 +21,6 @@ public class NodeIO {
 	
 	public NodeIO(DHTController controller) {
 		this.controller = controller;
-		
 	}
 	
 	
@@ -46,8 +48,15 @@ public class NodeIO {
 			
 			this.outStream = nodeSocket.getOutputStream();
 			this.inStream = nodeSocket.getInputStream();
+			byte[] shakeBuf = new byte[2];
 			
-			this.outStream.write(this.initConnCmd.getBytes());
+			this.outStream.write(toNodeShake);
+			this.inStream.read(shakeBuf);
+			if (shakeBuf[0] == fromNodeShake[0] && shakeBuf[1] == fromNodeShake[1]) {
+				Log.info(TAG, "Connected to node");
+			} else {
+				Log.info(TAG, "Failed to connect to node");
+			}
 
 			
 		} catch (Exception e) {

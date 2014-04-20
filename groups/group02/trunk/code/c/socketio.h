@@ -30,9 +30,11 @@
 #if !CMD_USE_STDIN
 #define sendcmd(socket, buf, key, type, payload, pl_len)    \
     do {                                                    \
-        int packetlen = pack_cmd(buf, key,                  \
+        if (socket != -1) {                                 \
+            int packetlen = pack_cmd(buf, key,              \
             type, payload, pl_len);                         \
         _sendcmd(socket, buf, packetlen);                   \
+        }                                                   \
     } while (0)
 #else
 #define sendcmd(socket, buf, key, type, payload, pl_len)

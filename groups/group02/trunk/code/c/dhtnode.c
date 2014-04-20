@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     fd_set rfds;
     fd_set wfds;
     int listensock = create_listen_socket(host_port);
-    int cmdsock = fileno(stdin);    // GUI (or stdin)
+    int cmdsock = -1;               // GUI (set to -1) or stdin (set to 0)
     int servsock = -1;              // Server
     int leftsock = -1;              // Other node
     int rightsock = -1;             // Other node
