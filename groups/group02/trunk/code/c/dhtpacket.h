@@ -33,6 +33,7 @@ struct packet* unpack(byte *buf);
  */
 int build_tcp_addr(byte *payload, struct tcp_addr *left, struct tcp_addr *right);
 
+
 /*
  * Copy tcp_addr to pl in format suitable to sending as
  * payload. Pl should be freed after. Return length of data in pl.
@@ -42,7 +43,7 @@ int addr_to_pl(byte **pl, struct tcp_addr *addr);
 /*
  * Return name of packet type.
  */
-char* packettostr(int type);
+const char* packettostr(int type);
 
 #endif
 

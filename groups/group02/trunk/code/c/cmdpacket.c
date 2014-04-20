@@ -31,7 +31,7 @@ struct cmd* unpack_cmd(byte *buf) {
     return cmd;  
 }
 
-char* cmdtostr(int type) {
+const char* cmdtostr(int type) {
     switch (type) {
 
         case CMD_PUT_DATA:

@@ -6,7 +6,8 @@ int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir) {
     int carry = 0;
 
     // First, calculate the midpoint for the sector that doesn't
-    // contain the gap.
+    // contain the gap. Midpoint can be found by calculating average
+    // of bits in same position.
     for (int i = 0; i < SHA1_KEY_LEN; i++) {
         val = (int) a[i] + (int) b[i] + 256*carry;
         carry = val % 2;
@@ -20,7 +21,8 @@ int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir) {
 
     // Check if the requested midpoint was actually on the sector
     // that has the gap. If so, then simply find the point that is on
-    // the opposite side of the ring.
+    // the opposite side of the ring (i.e. add or substract 128 to/from
+    // the most significant bit).
     if ((ord < 0 && dir < 0) || (ord > 0 && dir > 0)) {
         mid[0] = (mid[0] + 128) % 256;
     }
@@ -28,9 +30,9 @@ int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir) {
     return 0;
 }
 
-struct keyring* init_ring(sha1_t init_key) {
+struct keyring* init_ring(sha1_t host_key) {
     struct keyring *new = malloc(sizeof(struct keyring));
-    memcpy(new->key, init_key, SHA1_KEY_LEN);
+    memcpy(new->key, host_key, SHA1_KEY_LEN);
     new->next = new;
     new->previous = new;
     return new;
@@ -40,27 +42,31 @@ int add_key(struct keyring *ring, sha1_t key) {
     if (ring == NULL) {
         LOG_WARN(TAG_KEYRING, "Tried to add key to null ring");
         return 1;
-    }    
+    }
 
     struct keyring *pos = find_pos(ring, key);
-    if (hashcmp(key, pos->key) == 0) {
-        LOG_WARN(TAG_KEYRING, "Tried to add duplicate key: %.*s", SHA1_KEY_LEN, key);
-        return 1;
-    } else {
+    if (hashcmp(key, pos->key) != 0) {
         struct keyring *new = malloc(sizeof(struct keyring));
         memcpy(new->key, key, SHA1_KEY_LEN);
         new->previous = pos;
         new->next = pos->next;
 
-        if (pos == pos->next) { // If there is only initial key
+        if (pos == pos->next) { // If there is only host key
             pos->previous = new;
             pos->next = new;
         } else {
             (pos->next)->previous = new;
             pos->next = new;
         }
-        return 0;
     }
+
+    if (LOG_LEVEL >= DEBUG_LEVEL) {
+        char key_str[SHA1_DEBUG_LEN];
+        shatostr(key, key_str, SHA1_DEBUG_LEN);
+        LOG_DEBUG(TAG_KEYRING, "Added key: %s", key_str);
+    }
+
+    return 0;
 }
 
 int del_key(struct keyring *ring, sha1_t key) {
@@ -68,7 +74,7 @@ int del_key(struct keyring *ring, sha1_t key) {
         LOG_WARN(TAG_KEYRING, "Tried to delete key from null ring");
         return 1;
     } else if (hashcmp(key, ring->key) == 0) {
-        LOG_WARN(TAG_KEYRING, "Can't delete initialization key");
+        LOG_WARN(TAG_KEYRING, "Can't delete host key");
         return 1;
     }
 
@@ -103,7 +109,7 @@ struct keyring* find_pos(struct keyring *ring, sha1_t key) {
         pos = ring;
     } else {
         // First the direction of traversal is determined by comparing
-        // the new key to the initialization key. After that the ring is
+        // the new key to the host key. After that the ring is
         // traversed until a position is found where the new key is between
         // current and next/previous. Ord_diff is a sentinel for those cases
         // where the new key is lowest or highest in the whole ring.
@@ -157,22 +163,22 @@ struct keyring* slice_ring(struct keyring *ring, sha1_t range_begin, sha1_t rang
     int ord_end = hashcmp(end->key, ring->key);
 
     if (ord_begin == 0 && ord_end == 0) {
-        // No keys other than init in ring
+        // Only host key in ring
         return NULL;
     } else if (ord_begin < 0 && 0 < ord_end) {
-        // Join sliced parts
+        // Remove host key from slice
         (ring->previous)->next = ring->next;
         (ring->next)->previous = ring->previous;
 
-        // Join non-sliced to ring
+        // Join non-sliced parts back to host key
         (begin->previous)->next = ring;
         (end->next)->previous = ring;
 
-        // Join ring to non-sliced
+        // Join host key back to non-sliced parts
         ring->previous = begin->previous;
         ring->next = end->next;
     } else {
-        // Remove initialization key from slice
+        // Remove host key from slice
         if (ord_begin == 0) {
             begin = ring->next;
         }

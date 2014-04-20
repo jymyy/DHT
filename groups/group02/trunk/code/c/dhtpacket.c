@@ -92,60 +92,53 @@ int addr_to_pl(byte **pl, struct tcp_addr *addr) {
     return sizeof(uint16_t) + strlen(addr->addr) + 1;
 }
 
-char* packettostr(int type) {
+const char* packettostr(int type) {
     
     switch (type) {
-        case 1:
+        case DHT_REGISTER_BEGIN:
             return "DHT_REGISTER_BEGIN";
-        case 2:
+        case DHT_REGISTER_ACK:
             return "DHT_REGISTER_ACK";
-        case 3:
+        case DHT_REGISTER_FAKE_ACK:
             return "DHT_REGISTER_FAKE_ACK";
-        case 4:
+        case DHT_REGISTER_DONE:
             return "DHT_REGISTER_DONE";
             
-            
-        case 0x4121:
-            return "DHT_CLIENT_SHAKE";
-        case 0x413f:
-            return "DHT_SERVER_SHAKE";
-            
-            
-        case 11:
+        case DHT_DEREGISTER_BEGIN:
             return "DHT_DEREGISTER_BEGIN";
-        case 12:
+        case DHT_DEREGISTER_ACK:
             return "DHT_DEREGISTER_ACK";
-        case 13:
+        case DHT_DEREGISTER_DONE:
             return "DHT_DEREGISTER_DONE";
-        case 14:
+        case DHT_DEREGISTER_DENY:
             return "DHT_DEREGISTER_DENY";
             
             
-        case 21:
+        case DHT_GET_DATA:
             return "DHT_GET_DATA";
-        case 22:
+        case DHT_PUT_DATA:
             return "DHT_PUT_DATA";
-        case 23:
+        case DHT_DUMP_DATA:
             return "DHT_DUMP_DATA";
-        case 24:
+        case DHT_PUT_DATA_ACK:
             return "DHT_PUT_DATA_ACK";
-        case 25:
+        case DHT_DUMP_DATA_ACK:
             return "DHT_DUMP_DATA_ACK";
-        case 26:
+        case DHT_SEND_DATA:
             return "DHT_SEND_DATA";
-        case 27:
+        case DHT_TRANSFER_DATA:
             return "DHT_TRANSFER_DATA";
-        case 28:
+        case DHT_NO_DATA:
             return "DHT_NO_DATA";
             
             
-        case 31:
+        case DHT_ACQUIRE_REQUEST:
             return "DHT_ACQUIRE_REQUEST";
-        case 32:
+        case DHT_ACQUIRE_ACK:
             return "DHT_ACQUIRE_ACK";
-        case 33:
+        case DHT_RELEASE_REQUEST:
             return "DHT_RELEASE_REQUEST";
-        case 34:
+        case DHT_RELEASE_ACK:
             return "DHT_RELEASE_ACK";
             
         default:

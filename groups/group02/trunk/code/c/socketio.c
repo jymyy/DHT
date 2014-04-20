@@ -10,7 +10,7 @@ int _sendpacket(int socket, byte *sendbuf, int packetlen) {
 	return bytes_sent;		
 }
 
-int recvall(int socket, byte *recvbuf, int bufsize) {
+int recvpacket(int socket, byte *recvbuf, int bufsize) {
 	LOG_DEBUG(TAG_SOCKET, "Receiving from %d", socket);
 	int bytes_total = 0;
 	int bytes_received = 0;
@@ -121,7 +121,7 @@ int wait_hs(int socket) {
 	LOG_INFO(TAG_SOCKET, "Waiting for handshake");
 	uint16_t client_shake = htons(DHT_CLIENT_SHAKE);
     uint16_t server_shake = htons(DHT_SERVER_SHAKE);
-    uint16_t gui_shake = htons(DHT_GUI_SHAKE);
+    uint16_t gui_shake = CMD_GUI_SHAKE;
     uint16_t buf = 0;
     while (buf != client_shake && buf != gui_shake) {
     	recv(socket, &buf, 2, 0);

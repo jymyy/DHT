@@ -16,7 +16,7 @@ int hash_addr(struct tcp_addr *addr, sha1_t key);
 
 /*
  * Compare two hashes. Return negative if a is smaller than b, positive
- * if a larger than b and zero if they are equal.
+ * if a is larger than b and zero if they are equal.
  */
 int hashcmp(sha1_t a, sha1_t b);
 

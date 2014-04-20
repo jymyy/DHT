@@ -21,24 +21,22 @@
 #endif
 
 #define sendpacket(socket, buf, target, sender, type, payload, pl_len)  \
-do {                                                                    \
-    int packetlen = pack(buf, target, sender,                           \
-        type, payload, pl_len);                                         \
-    _sendpacket(socket, buf, packetlen);                                \
-} while (0)
+    do {                                                                \
+        int packetlen = pack(buf, target, sender,                       \
+            type, payload, pl_len);                                     \
+        _sendpacket(socket, buf, packetlen);                            \
+    } while (0)
 
 #if !CMD_USE_STDIN
 #define sendcmd(socket, buf, key, type, payload, pl_len)    \
-do {                                                        \
-    int packetlen = pack_cmd(buf, key,                      \
-        type, payload, pl_len);                             \
-    _sendcmd(socket, buf, packetlen);                       \
-} while (0)
+    do {                                                    \
+        int packetlen = pack_cmd(buf, key,                  \
+            type, payload, pl_len);                         \
+        _sendcmd(socket, buf, packetlen);                   \
+    } while (0)
 #else
 #define sendcmd(socket, buf, key, type, payload, pl_len)
 #endif
-
-
 
 /*
  * Send data until all data is sent and return length of sent data
@@ -48,15 +46,15 @@ int _sendpacket(int socket, byte *sendbuf, int packetlen);
 /*
  * Receive data until a complete packet is received and return length of received packet
  */
-int recvall(int socket, byte *recvbuf, int bufsize);
+int recvpacket(int socket, byte *recvbuf, int bufsize);
 
 /*
- * Send command to Java
+ * Send command to GUI.
  */
 int _sendcmd(int socket, byte *sendbuf, int cmdlen);
 
 /*
- * Receive command from Java
+ * Receive command from GUI.
  */
 int recvcmd(int socket, byte *recvbuf, int bufsize);
 
@@ -76,6 +74,9 @@ int wait_hs(int socket);
  */
 int open_conn(int *socket, struct tcp_addr *addr);
 
+/*
+ * Return listening socket opened on port.
+ */
 int create_listen_socket(char *port);
 
 #endif
