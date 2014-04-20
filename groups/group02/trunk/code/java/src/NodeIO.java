@@ -8,6 +8,8 @@ import java.net.*;
 public class NodeIO {
 	boolean printSends = true;
 	
+	String initConnCmd = "G!";
+	
 	DHTController controller;
 	Socket nodeSoc;
 	OutputStream outStream = null;
@@ -28,7 +30,7 @@ public class NodeIO {
 			Runtime runTime = Runtime.getRuntime();
 			runTime.exec(cmd);
 			*/
-			//nodeSoc = this.connectNode();
+			nodeSoc = this.connectNode();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -41,9 +43,13 @@ public class NodeIO {
 		try {
 			hostPort = Integer.parseInt(this.controller.hostPort);
 			nodeSocket = new Socket(this.controller.hostIP, hostPort);
+			
 			this.outStream = nodeSocket.getOutputStream();
 			this.inStream = nodeSocket.getInputStream();
-			//DataOutputStream out = new DataOutputStream(outStream);
+			
+			this.outStream.write(this.initConnCmd.getBytes());
+
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -75,14 +81,16 @@ public class NodeIO {
 				for (int i=0; i<command.length; i++) {
 					System.out.print((char)command[i]);
 				}
-				System.out.println("----SEND TO NODE.");
+				System.out.println();
+				System.out.println(":---SEND TO NODE.");
 			}
 			else {
 				this.outStream.write(command);
 			}
 		} catch (IOException e) {
-			Log.error("NodeIO", e);
+			//Log.error("NodeIO", e);
 			e.printStackTrace();
+			return -1;
 		}
 		
 		return 0;
