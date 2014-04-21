@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <getopt.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/select.h>
@@ -20,16 +21,70 @@
 
 #define TAG_NODE "Node"
 
+int loglevel = DEBUG_LEVEL;
+
 int main(int argc, char **argv) {
-    if (argc != 5) {
-        DIE(TAG_NODE, "Give host and server ports and addresses as argument");
+
+    char *host_address = NULL;
+    char *host_port = NULL;
+    char *server_address = NULL;
+    char *server_port = NULL;
+    char *blockdir = NULL;
+
+    int opt_index;
+    static struct option long_opts[] = {
+          {"hostaddr", required_argument, NULL, 'A'},
+          {"hostport", required_argument, NULL, 'P'},
+          {"servaddr", required_argument, NULL, 'a'},
+          {"servport", required_argument, NULL, 'p'},
+          {"blockdir", required_argument, NULL, 'b'},
+          {"loglevel", required_argument, NULL, 'l'},
+          {0, 0, 0, 0}
+    };
+
+    int c;
+    while ((c = getopt_long(argc, argv, "A:P:a:p:b:l:", long_opts, &opt_index)) != -1) {
+        switch (c) {
+            case 'A':
+                host_address = optarg;
+                break;
+            case 'P':
+                host_port = optarg;
+                break;
+            case 'a':
+                server_address = optarg;
+                break;
+            case 'p':
+                server_port = optarg;
+                break;
+            case 'b':
+                blockdir = optarg;
+                break;
+            case 'l':
+                loglevel = atoi(optarg);
+                break;
+            case '?':
+                if (optopt == 'A' || optopt == 'P' || optopt == 'a' ||
+                    optopt == 'p' || optopt == 'b' || optopt == 'l') {
+                    LOG_WARN(TAG_NODE, "Option -%c requires argument, reverting to default", optopt);
+                } else {
+                    LOG_WARN(TAG_NODE, "Unknown option -%c", optopt);
+                }
+        }
     }
 
-    char *host_address = argv[1];
-    char *host_port = argv[2];
-    char *server_address = argv[3];
-    char *server_port = argv[4];
-    char *blockdir = "blocks";    // TODO: Ask user for path
+    // Use defaults if options were not specified
+    if (host_address == NULL) { host_address = "localhost"; }
+    if (host_port == NULL) { host_port = "2000"; }
+    if (server_address == NULL) { server_address = "localhost"; }
+    if (server_port == NULL) { server_port = "1234"; }
+    if (blockdir == NULL) { blockdir = "blocks"; }
+
+    LOG_DEBUG(TAG_NODE, "Host address: %s", host_address);
+    LOG_DEBUG(TAG_NODE, "Host port: %s", host_port);
+    LOG_DEBUG(TAG_NODE, "Server address: %s", server_address);
+    LOG_DEBUG(TAG_NODE, "Server port: %s", server_port);
+    LOG_DEBUG(TAG_NODE, "Block directory: %s", blockdir);
   
     int status = 0;     // Return value for some functions
     int running = 1;    // Flag for main loop (changed to 0 when disconnection sequence starts)

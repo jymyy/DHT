@@ -12,43 +12,25 @@
 #define INFO_LEVEL      3
 #define DEBUG_LEVEL     4
 
-#ifndef LOG_LEVEL
-#define LOG_LEVEL       DEBUG_LEVEL
-#endif
-
-// Example:
-// 09:12:47 | WARN  | Node       |  Warning!
-
+extern int loglevel;
+#define LOG_LEVEL loglevel
 #define LOG_FORMAT                  "%s | %-5s | %-10s | "
-#define LOGPRINT(level, tag, ...)   do {fprintf(stderr, LOG_FORMAT, gettime(), level, tag); \
-                                        fprintf(stderr, __VA_ARGS__); \
-                                        fprintf(stderr, "\n");} while (0)
 
-#if LOG_LEVEL >= DEBUG_LEVEL
-#define LOG_DEBUG(tag, ...)         LOGPRINT("DEBUG", tag, __VA_ARGS__)
-#else
-#define LOG_DEBUG(tag, ...)
-#endif
+#define LOGPRINT(level, level_tag, tag, ...)    if (LOG_LEVEL >= level) { \
+                                                    fprintf(stderr, LOG_FORMAT, gettime(), level_tag, tag); \
+                                                    fprintf(stderr, __VA_ARGS__); \
+                                                    fprintf(stderr, "\n"); \
+                                                }
 
-#if LOG_LEVEL >= INFO_LEVEL
-#define LOG_INFO(tag, ...)          LOGPRINT("INFO", tag, __VA_ARGS__)
-#else
-#define LOG_INFO(tag, ...)
-#endif
+#define LOG_DEBUG(tag, ...)     LOGPRINT(DEBUG_LEVEL, "DEBUG", tag, __VA_ARGS__)
 
-#if LOG_LEVEL >= WARN_LEVEL
-#define LOG_WARN(tag, ...)          LOGPRINT("WARN", tag, __VA_ARGS__)
-#else
-#define LOG_WARN(tag, ...)
-#endif
+#define LOG_INFO(tag, ...)      LOGPRINT(INFO_LEVEL, "INFO", tag, __VA_ARGS__)
 
-#if LOG_LEVEL >= ERROR_LEVEL
-#define LOG_ERROR(tag, ...)         LOGPRINT("ERROR", tag, __VA_ARGS__)
-#else
-#define LOG_ERROR(tag, ...)
-#endif
+#define LOG_WARN(tag, ...)      LOGPRINT(WARN_LEVEL, "WARN", tag, __VA_ARGS__)
 
-#define DIE(tag, ...)          do { LOG_ERROR(tag, __VA_ARGS__); exit(1); } while (0)
+#define LOG_ERROR(tag, ...)     LOGPRINT(ERROR_LEVEL, "ERROR", tag, __VA_ARGS__)
+
+#define DIE(tag, ...)           do { LOG_ERROR(tag, __VA_ARGS__); exit(1); } while (0)
 
 static inline char *gettime() {
     static char buf[9];

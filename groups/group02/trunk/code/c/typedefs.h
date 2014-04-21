@@ -13,10 +13,14 @@
 #define MAX_PACKET_SIZE 65579   // MAX_BLOCK SIZE + PACKET_HEADER_LEN
 #define MAX_BLOCK_SIZE 65535
 
+
+
 // Options
-#define LOG_LEVEL DEBUG_LEVEL   // Levels: ZERO, ERROR, WARN, INFO, DEBUG
+// #define LOG_LEVEL loglevel      // Levels: ZERO, ERROR, WARN, INFO, DEBUG
 #define SHA1_DEBUG_LEN 8        // Length of printed SHA1 strings
 #define CMD_USE_STDIN 0         // Read commands from stdin
+
+
 
 // Type of buffer arrays
 typedef uint8_t byte;
