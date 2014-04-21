@@ -1,30 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <getopt.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+#include "dhtnode.h"
 
-#include "typedefs.h"
-#include "dhtpackettypes.h"
-#include "dhtpacket.h"
-#include "socketio.h"
-#include "fileio.h"
-#include "hash.h"
-#include "keyring.h"
-#include "log.h"
-
-#define TAG_NODE "Node"
-
-int loglevel = DEBUG_LEVEL;
+int loglevel = DEBUG_LEVEL; // This sets default log level
 
 int main(int argc, char **argv) {
-
     char *host_address = NULL;
     char *host_port = NULL;
     char *server_address = NULL;
@@ -61,14 +39,18 @@ int main(int argc, char **argv) {
                 blockdir = optarg;
                 break;
             case 'l':
-                loglevel = atoi(optarg);
+                if (*optarg == '0') {
+                    loglevel = 0;
+                } else if (atoi(optarg)) {
+                    loglevel =  atoi(optarg);
+                }
                 break;
             case '?':
                 if (optopt == 'A' || optopt == 'P' || optopt == 'a' ||
                     optopt == 'p' || optopt == 'b' || optopt == 'l') {
-                    LOG_WARN(TAG_NODE, "Option -%c requires argument, reverting to default", optopt);
+                    LOG_ERROR(TAG_NODE, "Option -%c requires argument, reverting to default", optopt);
                 } else {
-                    LOG_WARN(TAG_NODE, "Unknown option -%c", optopt);
+                    LOG_ERROR(TAG_NODE, "Unknown option -%c", optopt);
                 }
         }
     }
@@ -160,7 +142,7 @@ int main(int argc, char **argv) {
         status = select(10, &rfds, NULL, NULL, NULL);
 
         if (status == -1) {
-            LOG_WARN(TAG_NODE, "Select failed");
+            LOG_ERROR(TAG_NODE, "Select failed");
         } else if (FD_ISSET(cmdsock, &rfds)) {
             if (CMD_USE_STDIN) {
                 read(cmdsock, recvbuf, MAX_PACKET_SIZE);
@@ -474,7 +456,7 @@ int main(int argc, char **argv) {
         status = select(10, &rfds, &wfds, NULL, NULL);
 
         if (status == -1) {
-            DIE(TAG_NODE, "Select failed");
+            LOG_ERROR(TAG_NODE, "Select failed");
         } else if (FD_ISSET(servsock, &rfds)) {
             recvpacket(servsock, recvbuf, MAX_PACKET_SIZE);
             struct packet *packet = unpack(recvbuf);
@@ -504,7 +486,7 @@ int main(int argc, char **argv) {
                 tempsock = &rightsock;
                 temp_key = &right_key;
             } else {
-                DIE(TAG_NODE, "Invalid socket selected");
+                LOG_WARN(TAG_NODE, "Invalid socket selected");
             }
 
             if (*slice_n != NULL) {

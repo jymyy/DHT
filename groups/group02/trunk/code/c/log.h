@@ -12,12 +12,13 @@
 #define INFO_LEVEL      3
 #define DEBUG_LEVEL     4
 
-extern int loglevel;
+extern int loglevel;    // loglevel is defined in dhtnode.c
 #define LOG_LEVEL loglevel
-#define LOG_FORMAT                  "%s | %-5s | %-10s | "
+#define LOG_FORMAT              "%s | %-5s | %-10s | "
 
 #define LOGPRINT(level, level_tag, tag, ...)    if (LOG_LEVEL >= level) { \
-                                                    fprintf(stderr, LOG_FORMAT, gettime(), level_tag, tag); \
+                                                    fprintf(stderr, LOG_FORMAT, gettime(), \
+                                                            level_tag, tag); \
                                                     fprintf(stderr, __VA_ARGS__); \
                                                     fprintf(stderr, "\n"); \
                                                 }
