@@ -2,6 +2,15 @@
 
 int loglevel = DEBUG_LEVEL; // This sets default log level
 
+/**
+ * Option:              Short:  Long:           Default:
+ * Host address         -A      --hostaddr      localhost
+ * Host port            -P      --hostport      2000
+ * Server address       -a      --servaddr      localhost
+ * Server port          -p      --servport      1234
+ * Block directory      -b      --blockdir      ./blocks/
+ * Logging level        -l      --loglevel      4 (debug)
+ */
 int main(int argc, char **argv) {
     char *host_address = NULL;
     char *host_port = NULL;
