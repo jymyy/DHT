@@ -172,12 +172,12 @@ int main(int argc, char **argv) {
                     case CMD_GET_DATA:
                         // Request data
                         sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                   DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
+                               DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
                         break;
                     case CMD_DUMP_DATA:
                         // Delete data
                         sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                   DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
+                               DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
                         break;
                     case CMD_TERMINATE:
                         // Ask permission to leave
@@ -339,23 +339,42 @@ int main(int argc, char **argv) {
                     break;
                 case DHT_GET_DATA:
                     // Other node requested data
-                    build_tcp_addr(packet->payload, &temp_addr, NULL);
-                    open_conn(&tempsock, &temp_addr);
-                    init_hs(tempsock);
+                    ; int isnotself = hashcmp(host_key, packet->sender);
+
+                    if (isnotself) {
+                        build_tcp_addr(packet->payload, &temp_addr, NULL);
+                        open_conn(&tempsock, &temp_addr);
+                        init_hs(tempsock);
+                    }
 
                     // Check if we have requested data
                     if (has_key(ring, packet->target)) {
                         int blocklen = read_block(blockdir, packet->target,
                                                   blockbuf, MAX_BLOCK_SIZE);
                         if (blocklen > 0) {
-                            sendpacket(tempsock, sendbuf, packet->target, host_key,
+                            if (isnotself) {
+                                sendpacket(tempsock, sendbuf, packet->target, host_key,
                                        DHT_SEND_DATA, blockbuf, blocklen);
+                                close(tempsock);
+                            } else {
+                                sendcmd(cmdsock, sendbuf, packet->target,
+                                        CMD_GET_DATA_ACK, blockbuf, blocklen);
+                            }
+                        } else {
+                            LOG_ERROR(TAG_NODE ,"Error reading block");
                         }
+
                     } else {
-                        sendpacket(tempsock, sendbuf, packet->target, host_key,
+                        if (isnotself) {
+                            sendpacket(tempsock, sendbuf, packet->target, host_key,
                                    DHT_NO_DATA, NULL, 0);
+                            close(tempsock);
+                        } else {
+                            sendcmd(cmdsock, sendbuf, packet->target,
+                                    CMD_GET_NO_DATA_ACK, NULL, 0);
+                        }
+                        
                     }
-                    close(tempsock);
     
                     break;
                 case DHT_PUT_DATA:

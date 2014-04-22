@@ -1,10 +1,12 @@
 #ifndef DHTPACKET_H
 #define DHTPACKET_H
 
+#include <netinet/in.h>
+
 #include "typedefs.h"
 #include "dhtpackettypes.h"
 #include "dhtpacket.h"
-#include "socketio.h"
+//#include "socketio.h"
 #include "hash.h"
 #include "log.h"
 

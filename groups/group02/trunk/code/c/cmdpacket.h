@@ -1,6 +1,8 @@
 #ifndef CMDPACKET_H
 #define CMDPACKET_H
 
+#include <netinet/in.h>
+
 #include "typedefs.h"
 #include "cmdtypes.h"
 #include "log.h"

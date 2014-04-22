@@ -20,6 +20,8 @@ struct cmd* unpack_cmd(byte *buf) {
     memcpy(cmd->key, buf+CMD_KEY_OFFSET, sizeof(sha1_t));
     memcpy(&(cmd->type), buf+CMD_TYPE_OFFSET, sizeof(uint16_t));
     memcpy(&(cmd->pl_len), buf+CMD_PL_LEN_OFFSET, sizeof(uint16_t));
+    cmd->type = ntohs(cmd->type);
+    cmd->pl_len = ntohs(cmd->pl_len);
     if (cmd->pl_len > 0) {
         cmd->payload = malloc(cmd->pl_len);
         memcpy(cmd->payload, buf+CMD_PAYLOAD_OFFSET, cmd->pl_len);
