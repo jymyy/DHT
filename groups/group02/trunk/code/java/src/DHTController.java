@@ -32,6 +32,8 @@ public class DHTController {
 	String serverPort;
 	NodeIO nodeIO;
 	
+	private String[] dhtDir = {"testfile"};
+	
 	DHTController(String hostIP, String hostPort, String serverIP, String serverPort) {
 		this.hostIP = hostIP;
 		this.hostPort = hostPort;
@@ -215,6 +217,24 @@ public class DHTController {
 			return -1;
 		}
 		
+	}
+	
+	
+	/**
+	 * Gets the directory of all files in the DHT
+	 * @return
+	 */
+	public String[] getDHTdir() {
+		return dhtDir;
+	}
+	
+	
+	private int dirUpdate(String newFile) {
+		return 0;
+	}
+	
+	private int dirDelete(String removableFile) {
+		return 0;
 	}
 	
 	

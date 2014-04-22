@@ -120,7 +120,7 @@ public class NodeIO {
 			} while (offset > 0);
 			
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			
 			e.printStackTrace();
 		}
 		return bytesRead;
