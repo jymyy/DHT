@@ -8,7 +8,7 @@ import java.net.*;
 public class NodeIO {
 	public static String TAG = "NodeIO";
 
-	boolean printSends = true;
+	boolean printSends = false;
 
 	byte[] toNodeShake = new byte[] {0x47, 0x21};
 	byte[] fromNodeShake = new byte[] {0x47, 0x3f};

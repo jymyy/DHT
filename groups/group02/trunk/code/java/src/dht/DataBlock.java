@@ -55,7 +55,7 @@ public class DataBlock {
 	/**
 	 * getCommandBlock returns the data block with the command headers for the DHTnode 
 	 **/
-	public byte[] getPutBlock(int commandType) {
+	public byte[] getPutBlock(char commandType) {
 		
 		byte[] commandBlock = new byte[24 + this.MAX_BLOCK_SIZE];
 		
@@ -67,7 +67,7 @@ public class DataBlock {
 		
 		// Put command
 		b = ByteBuffer.allocate(2);
-		b.putShort((short)commandType);
+		b.putChar(commandType);
 		bytes = b.array();
 		System.arraycopy(bytes, 0, commandBlock, DataBlock.cmdOffset, 2);
 		
@@ -75,7 +75,7 @@ public class DataBlock {
 		
 		// Put payload size
 		b = ByteBuffer.allocate(2);
-		b.putShort((short)this.size);
+		b.putChar((char) this.size);
 		bytes = b.array();
 		System.arraycopy(bytes, 0, commandBlock, DataBlock.plLenOffset, 2);
 		
@@ -92,7 +92,7 @@ public class DataBlock {
 	 * @param key
 	 * @return
 	 */
-	public static byte[] getCommand(int commandType, byte[] key) {
+	public static byte[] getCommand(char commandType, byte[] key) {
 		
 		byte[] command = new byte[24];
 		byte[] bytes;
@@ -103,13 +103,13 @@ public class DataBlock {
 				
 		// Put command
 		b = ByteBuffer.allocate(2);
-		b.putShort( (short)commandType);
+		b.putChar(commandType);
 		bytes = b.array();
 		System.arraycopy(bytes, 0, command, DataBlock.cmdOffset, 2);
 				
 		// Put payload size (=0)
 		b = ByteBuffer.allocate(2);
-		b.putShort((short)0);
+		b.putChar((char) 0);
 		bytes = b.array();
 		System.arraycopy(bytes, 0, command, DataBlock.plLenOffset, 2);
 		

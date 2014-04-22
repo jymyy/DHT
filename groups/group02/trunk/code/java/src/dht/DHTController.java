@@ -5,25 +5,25 @@ import java.security.MessageDigest;
 import java.io.*;
 
 public class DHTController {
-	private final int CMD_PUT_DATA = 1;
-	private final int CMD_GET_DATA = 2;
-	private final int CMD_DUMP_DATA = 3;
-	private final int CMD_TERMINATE = 4;
-	private final int CMD_ACQUIRE_REQUEST = 5;
-	private final int CMD_RELEASE_REQUEST = 6;
+	private final char CMD_PUT_DATA = 1;
+	private final char CMD_GET_DATA = 2;
+	private final char CMD_DUMP_DATA = 3;
+	private final char CMD_TERMINATE = 4;
+	private final char CMD_ACQUIRE_REQUEST = 5;
+	private final char CMD_RELEASE_REQUEST = 6;
 
-	private final int CMD_PUT_DATA_ACK = 11;
-	private final int CMD_GET_DATA_ACK = 12;
-	private final int CMD_GET_NO_DATA_ACK = 13;
-	private final int CMD_DUMP_DATA_ACK = 14;
-	private final int CMD_TERMINATE_ACK = 15;
-	private final int CMD_TERMINATE_DENY = 16;
-	private final int CMD_ACQUIRE_ACK = 17;
-	private final int CMD_RELEASE_ACK = 18;
+	private final char CMD_PUT_DATA_ACK = 11;
+	private final char CMD_GET_DATA_ACK = 12;
+	private final char CMD_GET_NO_DATA_ACK = 13;
+	private final char CMD_DUMP_DATA_ACK = 14;
+	private final char CMD_TERMINATE_ACK = 15;
+	private final char CMD_TERMINATE_DENY = 16;
+	private final char CMD_ACQUIRE_ACK = 17;
+	private final char CMD_RELEASE_ACK = 18;
 
-	private final int CMD_REGISTER_DONE = 21;
-	private final int CMD_DEREGISTER_DONE = 22;
-	private final int CMD_BLOCKS_MAINTAINED = 23;
+	private final char CMD_REGISTER_DONE = 21;
+	private final char CMD_DEREGISTER_DONE = 22;
+	private final char CMD_BLOCKS_MAINTAINED = 23;
 	
 	public static final int MAX_BLOCK_SIZE = 65535;
 	String hostIP;
