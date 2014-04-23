@@ -3,8 +3,8 @@
 int pack_cmd(byte *buf, sha1_t key, uint16_t type,
              byte *payload, uint16_t pl_len) {
 
-    type = ntohs(type);
-    pl_len = ntohs(pl_len);
+    type = htons(type);
+    pl_len = htons(pl_len);
     memcpy(buf+CMD_KEY_OFFSET, key, sizeof(sha1_t));
     memcpy(buf+CMD_TYPE_OFFSET, &type, sizeof(uint16_t));
     memcpy(buf+CMD_PL_LEN_OFFSET, &pl_len, sizeof(uint16_t));
