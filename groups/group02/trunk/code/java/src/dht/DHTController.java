@@ -5,6 +5,8 @@ import java.security.MessageDigest;
 import java.io.*;
 
 public class DHTController {
+	public static String TAG = "Controller";
+	
 	private final char CMD_PUT_DATA = 1;
 	private final char CMD_GET_DATA = 2;
 	private final char CMD_DUMP_DATA = 3;
@@ -26,6 +28,7 @@ public class DHTController {
 	private final char CMD_BLOCKS_MAINTAINED = 23;
 	
 	public static final int MAX_BLOCK_SIZE = 65535;
+	public static final int MAX_BLOCK_PL_SIZE = 65531;
 	String hostIP;
 	String hostPort;
 	String serverIP;
@@ -63,25 +66,30 @@ public class DHTController {
 		try {
 			File file = new File(filePath);
 			
+			System.out.println(file.getAbsolutePath());
+			
 			// How many blocks are needed
 			long fileSize = file.length(); 	
-			int totalBlocks = (int) (fileSize / (this.MAX_BLOCK_SIZE-4));
-			if (fileSize % (this.MAX_BLOCK_SIZE-4) != 0) {
+			int totalBlocks = (int) (fileSize / (MAX_BLOCK_PL_SIZE));
+			if (fileSize % (MAX_BLOCK_PL_SIZE) != 0) {
 				totalBlocks++;
 			}
 			
 			InputStream fis = new FileInputStream(file);
 			
+			byte[] nextPayloadBuf;
 			byte[] nextPayload;
 			int bytesRead = 0;
 			int response;
 			// Put each file block to the DHT
 			for (int blockNo=1; blockNo<=totalBlocks; blockNo++) {
-				nextPayload = null;
-				bytesRead = fis.read(nextPayload, 0, this.MAX_BLOCK_SIZE-4);
+				nextPayloadBuf = new byte[MAX_BLOCK_PL_SIZE];
+				bytesRead = fis.read(nextPayloadBuf);
+				nextPayload = new byte[bytesRead];
+				System.arraycopy(nextPayloadBuf, 0, nextPayload, 0, bytesRead);
 				response = putBlock(new DataBlock(dhtFileName, totalBlocks, blockNo, nextPayload));
 				if (response != 0) {
-					// block putting fails
+					Log.info(TAG, "Put file fails");
 					return 1;
 				}
 			}
@@ -143,7 +151,7 @@ public class DHTController {
 					return 2;
 				}
 				fos.write(block, HeaderOffset, block.length - HeaderOffset);
-				addProgress(); // Notify that the operation has progressed
+				
 				
 			} 
 			fos.close();
@@ -198,7 +206,7 @@ public class DHTController {
 	 */
 	public int terminate() {
 		
-		this.nodeIO.sendCommand(DataBlock.getCommand(this.CMD_TERMINATE, null));
+		this.nodeIO.sendCommand(DataBlock.getCommand(CMD_TERMINATE, null));
 		byte[] nodeResponse = this.nodeIO.readCommand();
 		int responseCode = extractResponseCode(nodeResponse);
 		
@@ -225,11 +233,13 @@ public class DHTController {
 	 * @return
 	 */
 	public String[] getDHTdir() {
+		// TODO directory operations
 		return dhtDir;
 	}
 	
 	
 	private int dirUpdate(String newFile) {
+		
 		return 0;
 	}
 	
@@ -281,7 +291,7 @@ public class DHTController {
 		this.nodeIO.sendCommand(DataBlock.getCommand(CMD_GET_DATA, blockKey));
 		byte [] nodeResponse = this.nodeIO.readCommand();
 		
-		int responseCode = extractResponseCode(nodeResponse);
+		char responseCode = extractResponseCode(nodeResponse);
 		
 		System.out.println("Datablock requested. Waiting for response...");
 		if (responseCode == this.CMD_GET_DATA_ACK) {
@@ -349,15 +359,16 @@ public class DHTController {
 	
 	
 	public static void addProgress() {
-		
+		// TODO progress bar
 	}
 	
 	// Returns the responseCode extracted from DHTnode's response command
-	private int extractResponseCode(byte[] nodeResponse) {
+	private char extractResponseCode(byte[] nodeResponse) {
 		byte[] responseCodeArr = new byte[2];
-		System.arraycopy(nodeResponse, 0, responseCodeArr, 0, 2);
+		
+		System.arraycopy(nodeResponse, 20, responseCodeArr, 0, 2);
 		ByteBuffer wrapped = ByteBuffer.wrap(responseCodeArr); // big-endian by default
-		int responseCode = wrapped.getInt();
+		char responseCode = wrapped.getChar();
 		return responseCode;
 	}
 	

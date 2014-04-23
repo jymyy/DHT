@@ -110,19 +110,19 @@ public class NodeIO {
 	 * @return
 	 */
 	public byte[] readCommand() {
-		byte[] bytesRead = new byte[DataBlock.CMD_HEADER_LENGHT + DataBlock.MAX_BLOCK_SIZE];
+		byte[] bytesReadBuf = new byte[DataBlock.CMD_HEADER_LENGHT + DataBlock.MAX_BLOCK_SIZE];
 		int cmdMaxLen = DataBlock.CMD_HEADER_LENGHT + DataBlock.MAX_BLOCK_SIZE;
 		
-		int offset = 0;
+		int responseLen = 0;
 		try {
-			do {
-				offset = offset + this.inStream.read(bytesRead, offset, cmdMaxLen);
-			} while (offset > 0);
-			
+			responseLen = responseLen + this.inStream.read(bytesReadBuf, responseLen, cmdMaxLen);
+
 		} catch (IOException e) {
 			
 			e.printStackTrace();
 		}
+		byte[] bytesRead = new byte[responseLen];
+		System.arraycopy(bytesReadBuf, 0, bytesRead, 0, responseLen);
 		return bytesRead;
 	}
 	
