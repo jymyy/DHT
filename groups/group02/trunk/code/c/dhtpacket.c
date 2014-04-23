@@ -3,10 +3,10 @@
 int pack(byte *buf, sha1_t target_key, sha1_t sender_key,
          uint16_t type, byte *payload, uint16_t pl_len) {
 
-    memcpy(buf+TARGET_OFFSET, target_key, sizeof(sha1_t));
-    memcpy(buf+SENDER_OFFSET, sender_key, sizeof(sha1_t));
     uint16_t type_htons = htons(type);
     uint16_t pl_len_htons = htons(pl_len);
+    memcpy(buf+TARGET_OFFSET, target_key, sizeof(sha1_t));
+    memcpy(buf+SENDER_OFFSET, sender_key, sizeof(sha1_t));
     memcpy(buf+TYPE_OFFSET, &type_htons, sizeof(uint16_t));
     memcpy(buf+PL_LEN_OFFSET, &pl_len_htons, sizeof(uint16_t));
     if (payload != NULL) {
