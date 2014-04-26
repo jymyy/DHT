@@ -1,11 +1,17 @@
 package dht;
 import javax.swing.*;
 import java.awt.event.*;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.GridLayout;
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 public class GUI extends JFrame {
+	
+	// Basic variables
 	
 	DHTController controller;
 	JProgressBar progressBar;
@@ -13,13 +19,16 @@ public class GUI extends JFrame {
 	private JTextField filename = new JTextField(), dir = new JTextField();
 	String file = "";
 	String path = "";
-	JTextArea log;
+	JScrollPane log;
 	JLabel logText;
 	JPanel panel;
     JScrollPane directory;
     JLabel dirText;
+    JFrame progFrame;
+    JPanel progPanel;
 	
-	// Choosing a file to be put in to DHT
+	// Choosing a file to be put into DHT
+    
 	class PutFile implements ActionListener {
 		public void actionPerformed(ActionEvent e) {
 			if (connected == 1) {
@@ -37,8 +46,7 @@ public class GUI extends JFrame {
 	    		
 	    		path = c.getCurrentDirectory().toString();
 	    		System.out.print("Name of the directory: " + path);
-	    		//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
-	    		controller.getFile(file, path);
+	    		controller.putFile(file, path);
 	     	}
 	    	if (rVal == JFileChooser.CANCEL_OPTION) {
 	    		filename.setText("You pressed cancel");
@@ -56,26 +64,35 @@ public class GUI extends JFrame {
 	class GetFile implements ActionListener {
 		public void actionPerformed(ActionEvent e) {
 			if (connected == 1) {
-			JFileChooser c = new JFileChooser();
-			int rVal = c.showSaveDialog(GUI.this);
-			if (rVal == JFileChooser.APPROVE_OPTION) {
-	    		filename.setText(c.getSelectedFile().getName());
+				String searchName = (String)JOptionPane.showInputDialog(
+						GUI.this, 
+						"Give a filename",
+						"Get file",
+						JOptionPane.PLAIN_MESSAGE,
+						null,
+						null,
+						null);
+				
+				JFileChooser c = new JFileChooser();
+				int rVal = c.showSaveDialog(GUI.this);
+				if (rVal == JFileChooser.APPROVE_OPTION) {
+					filename.setText(c.getSelectedFile().getName());
 	    		
-	    		file = c.getSelectedFile().getName();
-	    		System.out.print("Name of the file: " + file + "\n");
+					file = c.getSelectedFile().getName();
+					System.out.print("Name of the file: " + file + "\n");
 	    		
-	    		dir.setText(c.getCurrentDirectory().toString());
+					dir.setText(c.getCurrentDirectory().toString());
 	    		
-	    		path = c.getCurrentDirectory().toString();
-	    		System.out.print("Name of the directory: " + path);
-	    		//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
-	    		controller.getFile(file, path);
-	     	}
-	    	if (rVal == JFileChooser.CANCEL_OPTION) {
-	    		filename.setText("You pressed cancel");
-	    		dir.setText("");
-	    	}
-		}
+					path = c.getCurrentDirectory().toString();
+					System.out.print("Name of the directory: " + path);
+					//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
+					controller.getFile(searchName, path, file);
+				}
+				if (rVal == JFileChooser.CANCEL_OPTION) {
+					filename.setText("You pressed cancel");
+					dir.setText("");
+				}
+			}
 		
 			else {
 				JOptionPane.showMessageDialog(null, "Not connected to any server");
@@ -83,9 +100,34 @@ public class GUI extends JFrame {
 		}
 	}
 	
+	
+	// Dump window
+	class Dump implements ActionListener {
+		
+		public void actionPerformed(ActionEvent e) {
+			if (connected == 1) {
+				String searchName = (String)JOptionPane.showInputDialog(
+						GUI.this, 
+						"Give a filename",
+						"Dump file",
+						JOptionPane.PLAIN_MESSAGE,
+						null,
+						null,
+						null);
+		    		System.out.print(searchName);
+		    		controller.dumpFile(searchName);
+		    }
+			
+			
+			else {
+				JOptionPane.showMessageDialog(null, "Not connected to any server");
+			}
+		}
+
+	}
+	
 	// Connection window
 	class Connect implements ActionListener {
-		JFrame connection = new JFrame("Connection");
 		JTextField serverAddr = new JTextField(1);
 		JTextField serverPort = new JTextField(1);
 		JTextField hostAddr = new JTextField(1);
@@ -96,9 +138,6 @@ public class GUI extends JFrame {
 		String hport;
 		
 		public void actionPerformed(ActionEvent e) {
-			connection.setSize(250, 200);
-			connection.setLocationRelativeTo(null);
-			
 			JLabel textLabel1 = new JLabel();
 			JLabel textLabel2 = new JLabel();
 			JLabel textLabel3 = new JLabel();
@@ -111,104 +150,123 @@ public class GUI extends JFrame {
 			textLabel3.setText("Host address");
 			textLabel4.setBounds(10,70,100,20);
 			textLabel4.setText("Host port");
-			
+						
 			JPanel connectPanel = new JPanel();
-		    getContentPane().add(connectPanel);
-		    connectPanel.setLayout(null);
 			serverAddr.setBounds(110,10,100,20);
 			serverPort.setBounds(110,30,100,20);
 			hostAddr.setBounds(110,50,100,20);
 			hostPort.setBounds(110,70,100,20);
-			JButton connect = new JButton("Connect");
-			connect.setBounds(50,100,100,30);
+			connectPanel.setLayout(new GridLayout(4,1));
 			connectPanel.add(textLabel1);
-			connectPanel.add(textLabel2);
-			connectPanel.add(textLabel3);
-			connectPanel.add(textLabel4);
-			connectPanel.add(connect);
 			connectPanel.add(serverAddr);
+			connectPanel.add(textLabel2);
 			connectPanel.add(serverPort);
+			connectPanel.add(textLabel3);
 			connectPanel.add(hostAddr);
+			connectPanel.add(textLabel4);
 			connectPanel.add(hostPort);
-			connect.addActionListener(new ActionListener() {
-		    	public void actionPerformed(ActionEvent event) {
-		    		//TODO: GIVE INFO TO CONTROLLER
-		    		saddr = serverAddr.getText();
-		    		sport = serverPort.getText();
-		    		haddr = hostAddr.getText();
-		    		hport = hostPort.getText();
-		    		System.out.print("Server address: " + saddr + " Server port: " + sport + " Host address: " + haddr + " Host port: " + hport);
-		    		controller = new DHTController(haddr, hport, saddr, sport);
-		    		connected = 1;
-		    		directory(controller.getDHTdir());
-		    		connection.setVisible(false);
-		    		}
-		    });
-			
-			connection.add(connectPanel);
-			connection.setVisible(true);
-			
-		}
+			int result = JOptionPane.showConfirmDialog(null, connectPanel,"", JOptionPane.OK_CANCEL_OPTION);
+			if (result == JOptionPane.OK_OPTION) {
+				//TODO: GIVE INFO TO CONTROLLER
+				saddr = serverAddr.getText();
+				sport = serverPort.getText();
+				haddr = hostAddr.getText();
+				hport = hostPort.getText();
+				try {
+					int sportint = Integer.parseInt(sport);
+					int hportint = Integer.parseInt(hport);
+					System.out.print("Server address: " + saddr + " Server port: " + sport + " Host address: " + haddr + " Host port: " + hport);
+					controller = new DHTController(haddr, hport, saddr, sport);
+					connected = 1;
+					directory(controller.getDHTdir());
+					progress(0, 100, "Connecting to server");
+				} catch (Exception ex) {
+					JOptionPane.showMessageDialog(null, "Connection to server failed. Be sure your ports are integers.");
+				}
+				}
+			};
 	}
 	
-	// Dump window
-	class Dump implements ActionListener {
-		JFrame dumping = new JFrame("Dump file");
-		JTextField input = new JTextField(1);
-		String inputText;
-		
-		public void actionPerformed(ActionEvent e) {
-			if (connected == 1) {
-			dumping.setSize(250, 150);
-			dumping.setLocationRelativeTo(null);
-			
-			JPanel dumpPanel = new JPanel();
-			JLabel textLabel = new JLabel();
-			textLabel.setBounds(10,10,100,20);
-			textLabel.setText("Give a filename");
-		    getContentPane().add(dumpPanel);
-		    dumpPanel.setLayout(null);
-		    dumpPanel.setSize(500, 500);
-		    dumpPanel.setLocation(0,0);
-			input.setBounds(110,10,100,20);
-			JButton dump = new JButton("Dump file");
-			dump.setBounds(50,40,100,30);
-			dumpPanel.add(textLabel);
-			dumpPanel.add(dump);
-			dumpPanel.add(input);
-			dump.addActionListener(new ActionListener() {
-		    	public void actionPerformed(ActionEvent event) {
-		    		//TODO: GIVE NAME OF THE FILE (inputText) TO CONTROLLER
-		    		inputText = input.getText();
-		    		System.out.print(inputText);
-		    		controller.dumpFile(inputText);
-		    		dumping.setVisible(false);
-		    		}
-		    });
-			
-			dumping.add(dumpPanel);
-			dumping.setVisible(true);
-			
-		}
-			
-		else {
-				JOptionPane.showMessageDialog(null, "Not connected to any server");
+	
+	class Disconnect implements ActionListener {
+		public void actionPerformed(ActionEvent event) {
+    		//TODO: EXIT GENTLY
+    		if (connected == 1) {
+    		int terminate = controller.terminate();
+    		if (terminate == 0) {
+    		System.exit(0);
+    		}
+    		else if (terminate == 1)
+    		{
+    			JOptionPane.showMessageDialog(null, "Termination denied.");
+    			}
+    		else {
+    			JOptionPane.showMessageDialog(null, "Termination failed.");
+    			}
+    		}
+    		else {
+    		JOptionPane.showMessageDialog(null, "Not connected to any server.");
+    		}
+    	}
+	}
+	
+	class Exit implements ActionListener {
+		public void actionPerformed(ActionEvent event) {
+			int reply = JOptionPane.showConfirmDialog(null, "Exit hard way?", "Exit", JOptionPane.YES_NO_OPTION);
+			if (reply == JOptionPane.YES_OPTION) {
+				System.exit(0);
+			}
+			else {
+	    		if (connected == 1) {
+	        		int terminate = controller.terminate();
+	        		if (terminate == 0) {
+	        		System.exit(0);
+	        		}
+	        		else if (terminate == 1)
+	        		{
+	        			JOptionPane.showMessageDialog(null, "Termination denied.");
+	        			}
+	        		else {
+	        			JOptionPane.showMessageDialog(null, "Termination failed.");
+	        			}
+	        		}
+	        		else {
+	        			JOptionPane.showMessageDialog(null, "Not connected to any server.");
+	        			System.exit(0);
+	        		}
+	        	}
 			}
 		}
-
-	}
 	
 	// Progress bar
 	
-	public void progress(int progress, int maxValue) {
-		JPanel progPanel = new JPanel();
+	public void progress(int progress, int maxValue, String status) {
+		progFrame = new JFrame("Progress");
+		progPanel = new JPanel();
+		JLabel textLabel = new JLabel();
+		textLabel.setBounds(10,10,100,20);
+		textLabel.setText(status);
+		progFrame.setSize(250, 150);
+		progFrame.setLocationRelativeTo(null);
 		progPanel.setBorder(BorderFactory.createEmptyBorder(40,40,40,40));
 		progPanel.setLayout(new BoxLayout(progPanel, BoxLayout.Y_AXIS));
-		progressBar = new JProgressBar(progress, maxValue);
-		progressBar.setMaximumSize(new Dimension(150, 20));
-		progressBar.setMinimumSize(new Dimension(150, 20));
-		progressBar.setPreferredSize(new Dimension(150, 20));
+		progressBar = new JProgressBar(0, maxValue);
+		progressBar.setSize(150, 40);
 		progressBar.setAlignmentX(0f);
+		progFrame.add(progPanel);
+		progPanel.add(progressBar);
+		progPanel.add(textLabel);
+		progressBar.setValue(progress);
+		// progressBar.setString(status);
+		progressBar.setStringPainted(true);
+		if (progress < maxValue) {
+			progFrame.setVisible(true);
+		}
+		else {
+			progFrame.setVisible(false);
+			JOptionPane.showMessageDialog(null, status + " completed.");
+			
+		}
 	}
 	
 	
@@ -224,8 +282,9 @@ public class GUI extends JFrame {
 	
 	public void log(String msg) {
 
-        log.append(msg);
-        log.setBounds(500, 100, 400, 300);
+		String[] list = new String[] {msg};
+		JList dir = new JList(list);
+        log.getViewport().add(dir);
 	    panel.add(log);
 	    panel.add(logText);
 	}
@@ -282,27 +341,7 @@ public class GUI extends JFrame {
 	    // Setting disconnect button
 	    JButton disconnectButton = new JButton("Disconnect");
 	    disconnectButton.setBounds(600, 10, 120, 30);
-	    disconnectButton.addActionListener(new ActionListener() {
-	    	public void actionPerformed(ActionEvent event) {
-	    		//TODO: EXIT GENTLY
-	    		if (connected == 1) {
-	    		int terminate = controller.terminate();
-	    		if (terminate == 0) {
-	    		System.exit(0);
-	    		}
-	    		else if (terminate == 1)
-	    		{
-	    			JOptionPane.showMessageDialog(null, "Termination denied.");
-	    		}
-	    		else {
-	    			JOptionPane.showMessageDialog(null, "Termination failed.");
-	    		}
-	    	}
-	    	else {
-	    		JOptionPane.showMessageDialog(null, "Not connected to any server.");
-	    	}
-	    	}
-	    });
+	    disconnectButton.addActionListener(new Disconnect());
 	    
 	    panel.add(disconnectButton);
 	    disconnectButton.setToolTipText("Leave the server gently");
@@ -313,7 +352,7 @@ public class GUI extends JFrame {
 	    refreshButton.addActionListener(new ActionListener() {
 	    	public void actionPerformed(ActionEvent event) {
 	    		if (connected == 1) {
-	    		directory(controller.getDHTdir());
+	    			directory(controller.refreshDHTdir());
 	    	}
 	    		else {
 	    			JOptionPane.showMessageDialog(null, "Not connected to any server.");
@@ -337,9 +376,9 @@ public class GUI extends JFrame {
 		logText = new JLabel();
 		logText.setBounds(500,80,100,20);
 		logText.setText("Log");
-	    log = new JTextArea();
+	    log = new JScrollPane();
         log.setBounds(500, 100, 400, 300);
-        log("LOGI TOIMII");
+        log("No traffic");
 	    
 	    // Setting upper menu
 	    JMenuBar menubar = new JMenuBar();
@@ -357,6 +396,8 @@ public class GUI extends JFrame {
 	    JCheckBoxMenuItem showc = new JCheckBoxMenuItem("Show C log");
 	    JCheckBoxMenuItem showj = new JCheckBoxMenuItem("Show Java log");
 	    JCheckBoxMenuItem showf = new JCheckBoxMenuItem("Full screen");
+	    showc.setSelected(true);
+	    showj.setSelected(true);
 	    fileMenu.add(connectItem);
 	    fileMenu.add(putItem);
 	    fileMenu.add(getItem);
@@ -374,17 +415,55 @@ public class GUI extends JFrame {
 	    menubar.add(helpMenu);
 	    setJMenuBar(menubar);
 	    
+	    connectItem.addActionListener(new Connect());
+	    putItem.addActionListener(new PutFile());
+	    getItem.addActionListener(new GetFile());
+	    dumpItem.addActionListener(new Dump());
+	    disconnectItem.addActionListener(new Disconnect());
+	    eMenuItem.addActionListener(new Exit());
 	    
-	    // Default close
-	    setDefaultCloseOperation(EXIT_ON_CLOSE);
+	    showf.addActionListener(new ActionListener() {
+	    	public void actionPerformed(ActionEvent e) {
+	    		setExtendedState(JFrame.MAXIMIZED_BOTH);
+	    	}
+	    });
+	    
+	    showc.addActionListener(new ActionListener() {
+	    	public void actionPerformed(ActionEvent e) {
+	    		//TODO: SHOW / HIDE C LOG!
+	    	}
+	    });
+	    
+	    showj.addActionListener(new ActionListener() {
+	    	public void actionPerformed(ActionEvent e) {
+	    		//TODO: SHOW / HIDE JAVA LOG!
+	    	}
+	    });
+	    
+	    dMenuItem.addActionListener(new ActionListener() {
+	    	public void actionPerformed(ActionEvent e) {
+	    		try {
+	    			// TODO: CHANGE LOCATION!
+	    			File documentation = new File("C:/Users/Oem/Desktop/dht/src/dht/documentation.pdf");
+	    			Desktop.getDesktop().open(documentation);
+	    		} catch (IOException ex) {
+	    			JOptionPane.showMessageDialog(null, "Documentation file not found.");
+	    		}
+	    	}
+	    });
+	    
+
 	    
 	    // Show GUI
 	    this.add(panel);
 	    this.setVisible(true);
-	    }
+	}
 	
-	  public static void main(String[] args) {
-	    new GUI();
-	  }
+	public static void main(String[] args) {
+		new GUI();
+	}
+	
 }
+
+
 
