@@ -49,7 +49,6 @@ public class NodeIO {
 			this.outStream = nodeSocket.getOutputStream();
 			this.inStream = nodeSocket.getInputStream();
 			byte[] shakeBuf = new byte[2];
-			
 			this.outStream.write(toNodeShake);
 			this.inStream.read(shakeBuf);
 			if (shakeBuf[0] == fromNodeShake[0] && shakeBuf[1] == fromNodeShake[1]) {

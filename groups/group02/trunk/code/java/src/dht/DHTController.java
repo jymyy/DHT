@@ -3,6 +3,8 @@ package dht;
 import java.nio.*;
 import java.security.MessageDigest;
 import java.io.*;
+import java.util.Iterator;
+import java.util.LinkedList;
 
 public class DHTController {
 	public static String TAG = "Controller";
@@ -40,17 +42,27 @@ public class DHTController {
 	private int progBarValue;
 	private int progBarMax;
 	
-	private String[] dhtDir = {"testfile"};
+	private LinkedList<String> dhtDir;
+	private byte[] dirKey;
+	
 	
 	DHTController(String hostIP, String hostPort, String serverIP, String serverPort) {
 		this.hostIP = hostIP;
 		this.hostPort = hostPort;
 		this.serverIP = serverIP;
 		this.serverPort = serverPort;
-		this.gui = GUI.gui;  // Needs thinking!! Needed to call the progress bar
+		this.gui = GUI.gui;  // TODO Think!! Needed to call the progress bar??
 		
 		this.nodeIO = new NodeIO(this); 
 		nodeIO.startNode();
+		
+		// Get local copy of DHT directory
+		dhtDir = new LinkedList<String>();
+		dirKey = getSHA1("DHTDIR");
+		
+		
+		
+		
 		
 	}
 	
@@ -242,29 +254,135 @@ public class DHTController {
 	
 	
 	/**
-	 * Gets the directory of all files in the DHT
-	 * @return
+	 * Returns the directory of all files in the DHT
+	 * from the local copy.
 	 */
 	public String[] getDHTdir() {
-		// TODO directory operations
-		return dhtDir;
+		String[] dirArray = this.dhtDir.toArray(new String[dhtDir.size()]);
+		return dirArray;
 	}
 	
+	/**
+	 * Gets the directory of all files in the DHT from the
+	 * DHT, updates the local copy and returns it.
+	 */
 	public String[] refreshDHTdir() {
-		// TODO directory operations
-		return dhtDir;
-	}
-	
-	private int getDir() {
-		return 0;
-	}
-	
-	private int dirUpdate(String newFile) {
+		getDir();
 		
+		String[] dirArray = this.dhtDir.toArray(new String[dhtDir.size()]);
+		return dirArray;
+	}
+	
+	
+	
+	
+	private int getDir() { // TODO Add progress bar
+		// Directory format: totalFiles[2], file1nameSize[2], file1name[], file1nameSize[2], file1name[]... 
+		Log.debug(TAG, "Getting DHT directory.");
+		byte[] nodeResponse = getBlock(dirKey);
+		
+		if (nodeResponse == null) {
+			if (dhtDir.isEmpty()) { // No old directory or local copy, probably the first node
+				Log.debug(TAG, "No directorys found.");
+			}
+			else { // The directory block has been lost or corrupted
+				Log.error(TAG, "The DHT directory has either been lost or corrupted.");
+			}
+			Log.debug(TAG, "No DHT directory found -> start new one.");
+			if (putDir() == 0 ) {
+				Log.info(TAG, "Added a directory block to the DHT!");
+				return 0;
+			}
+			else { 
+				Log.error(TAG, "Error: could not add a directory block!");
+			}
+		}
+		else {
+			if (nodeResponse.length == 2) {
+				dhtDir = new LinkedList<String>();
+				return 0;
+			}
+			
+			byte[] bufArr = new byte[2];
+			System.arraycopy(nodeResponse, 0, bufArr, 0, 2);
+			ByteBuffer wrapped = ByteBuffer.wrap(nodeResponse);
+			int dirSize = (int) wrapped.getChar();
+			
+			int i = 2;
+			int file = 0;
+			int fileNameSize;
+			byte[] fileNameArr;
+			while (file < dirSize) {
+				bufArr = new byte[2];	
+				System.arraycopy(nodeResponse, 0, bufArr, 0, 2);
+				wrapped = ByteBuffer.wrap(nodeResponse);
+				fileNameSize = (int) wrapped.getChar();
+				
+				fileNameArr = new byte[fileNameSize];
+				System.arraycopy(nodeResponse, i, fileNameArr, 0, fileNameSize);
+				i = i + fileNameSize;
+				if (i >= nodeResponse.length) {
+					Log.error(TAG, "DHT directory bloc is corrupted.");
+					return -1;
+				}
+				file++;
+				dhtDir.add(new String(fileNameArr));
+				
+			}
+		}
+
 		return 0;
 	}
 	
-	private int dirDelete(String removableFile) {
+	
+	private int putDir() { // TODO Add progress bar
+		ByteBuffer b;
+		byte[] bytes;
+		byte[] newDirBuf = new byte[MAX_BLOCK_PL_SIZE];
+		
+		b = ByteBuffer.allocate(2);
+		b.putChar((char) dhtDir.size());
+		bytes = b.array();
+		System.arraycopy(bytes, 0, newDirBuf, 0, 2);
+		
+		Iterator<String> itr = dhtDir.descendingIterator();
+		int offset = 2;
+		byte[] fileNameArr; 
+		while (itr.hasNext()) {
+			fileNameArr = itr.next().getBytes();
+			b = ByteBuffer.allocate(2);
+			b.putChar((char) fileNameArr.length);
+			bytes = b.array();
+			System.arraycopy(bytes, 0, newDirBuf, offset, 2);
+			offset = offset +2;
+			
+			System.arraycopy(fileNameArr, 0, newDirBuf, offset, fileNameArr.length);
+			offset = offset +fileNameArr.length;
+		}
+		byte[] newDir = new byte[offset];
+		System.arraycopy(newDirBuf, 0, newDir, 0, offset);
+		if (putBlock(new DataBlock("DHTDIR", 1, 1, newDir)) == 0) {
+			return 0;
+		}
+		else {
+			Log.error(TAG, "Failed to put directory.");
+			return -1;
+		}
+		
+		
+	}
+	
+	private int dirAdd(String newFile) { // TODO Add progress bar and error handling
+		getDir();
+		dhtDir.add(newFile);
+		putDir();
+		return 0;
+	}
+	
+	private int dirDelete(String removableFile) { // TODO Add progress bar and error handling
+		getDir();
+		dhtDir.remove(removableFile);
+		putDir();
 		return 0;
 	}
 	
@@ -370,8 +488,6 @@ public class DHTController {
 	        cript.reset();
 	        cript.update(hashable.getBytes("utf8"));
 	        hashKey = cript.digest();
-	        
-	        System.out.println("Hashed a key!");
 	        
 		} catch (Exception e) {
 			e.printStackTrace();
