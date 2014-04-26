@@ -26,6 +26,9 @@ public class GUI extends JFrame {
     JLabel dirText;
     JFrame progFrame;
     JPanel progPanel;
+    
+    static GUI gui;
+    
 	
 	// Choosing a file to be put into DHT
     
@@ -136,6 +139,7 @@ public class GUI extends JFrame {
 		String sport;
 		String haddr;
 		String hport;
+		
 		
 		public void actionPerformed(ActionEvent e) {
 			JLabel textLabel1 = new JLabel();
@@ -290,7 +294,8 @@ public class GUI extends JFrame {
 	}
 	
 	public GUI() {
-		  
+		this.gui = this; // This is in order to call progress bar from controller
+		
 		// Setting up main window
 		setTitle("DHT GUI");
 		setSize(950,600);
