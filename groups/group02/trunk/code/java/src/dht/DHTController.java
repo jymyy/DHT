@@ -146,14 +146,14 @@ public class DHTController {
 			return 1;
 		}
 		
-		int HeaderOffset = 48;
+		int dataOffset = DataBlock.CMD_HEADER_LENGTH + DataBlock.DATA_OFFSET;
 		try {
-			File newFile = new File(path + newFileName);
+			File newFile = new File(path + "/" + newFileName);
 			OutputStream fos = new FileOutputStream(newFile);
-			fos.write(block, HeaderOffset, block.length - HeaderOffset);
+			fos.write(block, dataOffset, block.length - dataOffset);
 			
 			byte[] bTotalBlocks = new byte[2];
-			System.arraycopy(bTotalBlocks, 0, block, 0, 2);
+			System.arraycopy(block, DataBlock.CMD_HEADER_LENGTH + DataBlock.TOTALBLOCKS_OFFSET, bTotalBlocks, 0, 2);
 			ByteBuffer bb = ByteBuffer.wrap(bTotalBlocks);
 			int totalBlocks = (int) bb.getShort(); 
 			// Start progress bar for downloading
@@ -169,7 +169,7 @@ public class DHTController {
 					fos.close();
 					return 2;
 				}
-				fos.write(block, HeaderOffset, block.length - HeaderOffset);
+				fos.write(block, dataOffset, block.length - dataOffset);
 				addProgress();
 			} 
 			fos.close();
@@ -399,7 +399,7 @@ public class DHTController {
 	private int putBlock(DataBlock block) {
 		byte[] cmd = block.getPutBlock(CMD_PUT_DATA);
 		this.nodeIO.sendCommand(cmd);
-		Log.debug(TAG, "Put command send, waiting for response.");
+		Log.debug(TAG, "Put command sent, waiting for response.");
 		addProgress();
 		byte[] nodeResponse = this.nodeIO.readCommand();
 		char responseCode = extractResponseCode(nodeResponse);
@@ -427,7 +427,7 @@ public class DHTController {
 	private byte[] getBlock(byte[] blockKey) {
 		
 		this.nodeIO.sendCommand(DataBlock.getCommand(CMD_GET_DATA, blockKey));
-		Log.debug(TAG, "Get command send, waiting for nodes response.");
+		Log.debug(TAG, "Get command sent, waiting for node's response.");
 		addProgress();
 		byte [] nodeResponse = this.nodeIO.readCommand();
 		addProgress();

@@ -7,17 +7,17 @@ import java.nio.*;
  **/
 public class DataBlock {
 	//Command block
-	private static final int KEY_OFFSET = 0;				// key [20]
-	private static final int CMD_TYPE_OFFSET = 20;		// Command Type [2]
-	private static final int DATABLOCK_LEN_OFFSET = 22;	// payload length [2]
-	private static final int DATABLOCK_OFFSET = 24;		// datablock [MAX_BLOCK_SIZE = 65535]
+	public static final int KEY_OFFSET = 0;				// key [20]
+	public static final int CMD_TYPE_OFFSET = 20;		// Command Type [2]
+	public static final int DATABLOCK_LEN_OFFSET = 22;	// payload length [2]
+	public static final int DATABLOCK_OFFSET = 24;		// datablock [MAX_BLOCK_SIZE = 65535]
 	//Data block
-	private static final int TOTALBLOCKS_OFFSET = 0;		// Total number of block in the file [2]
-	private static final int BLOCKNO_OFFSET = 2;			// Block number of this block [2]
-	private static final int DATA_OFFSET = 4;				// Data [MAX_BLOCK_SIZE - 4 = 65531]
+	public static final int TOTALBLOCKS_OFFSET = 0;		// Total number of block in the file [2]
+	public static final int BLOCKNO_OFFSET = 2;			// Block number of this block [2]
+	public static final int DATA_OFFSET = 4;			// Data [MAX_BLOCK_SIZE - 4 = 65531]
 	
 	public static final int MAX_BLOCK_SIZE = 65535;
-	public static final int CMD_HEADER_LENGHT = 44;
+	public static final int CMD_HEADER_LENGTH = 24;     // Was 44
 	
 	byte[] blockKey; // SHA1
 	int size;

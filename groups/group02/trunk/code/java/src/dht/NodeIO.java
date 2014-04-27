@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.*;
+import java.nio.ByteBuffer;
 
 public class NodeIO {
 	public static String TAG = "NodeIO";
@@ -109,20 +110,36 @@ public class NodeIO {
 	 * @return
 	 */
 	public byte[] readCommand() {
-		byte[] bytesReadBuf = new byte[DataBlock.CMD_HEADER_LENGHT + DataBlock.MAX_BLOCK_SIZE];
-		int cmdMaxLen = DataBlock.CMD_HEADER_LENGHT + DataBlock.MAX_BLOCK_SIZE;
-		
-		int responseLen = 0;
+		byte[] bytesReadBuf = new byte[DataBlock.CMD_HEADER_LENGTH + DataBlock.MAX_BLOCK_SIZE];
+
+		int bytesTotal = 0;
+        int bytesRead = 0;
+        int bytesMissing = DataBlock.CMD_HEADER_LENGTH;
 		try {
-			responseLen = responseLen + this.inStream.read(bytesReadBuf, responseLen, cmdMaxLen);
+            while (bytesMissing > 0) {
+                bytesRead = this.inStream.read(bytesReadBuf, bytesTotal, bytesMissing);
+                bytesTotal += bytesRead;
+                bytesMissing -= bytesRead;
+            }
+
+            byte[] bBlockLength = new byte[2];
+            System.arraycopy(bytesReadBuf, DataBlock.DATABLOCK_LEN_OFFSET, bBlockLength, 0, 2);
+            bytesMissing = 256*(bBlockLength[0] & 0xFF) + (bBlockLength[1] & 0xFF); // Java has signed bytes so some trickery is needed
+
+            while (bytesMissing > 0) {
+                bytesRead = this.inStream.read(bytesReadBuf, bytesTotal, bytesMissing);
+                bytesTotal += bytesRead;
+                bytesMissing -= bytesRead;
+            }
 
 		} catch (IOException e) {
 			
 			e.printStackTrace();
 		}
-		byte[] bytesRead = new byte[responseLen];
-		System.arraycopy(bytesReadBuf, 0, bytesRead, 0, responseLen);
-		return bytesRead;
+		byte[] bytesReadBufTrimmed = new byte[bytesTotal];
+		System.arraycopy(bytesReadBuf, 0, bytesReadBufTrimmed, 0, bytesTotal);
+        Log.debug(TAG, "Received " + bytesTotal + " bytes");
+		return bytesReadBufTrimmed;
 	}
 	
 }

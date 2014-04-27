@@ -48,8 +48,8 @@ public class GUI extends JFrame {
 	    		dir.setText(c.getCurrentDirectory().toString());
 	    		
 	    		path = c.getCurrentDirectory().toString();
-	    		System.out.print("Name of the directory: " + path);
-	    		controller.putFile(file, path);
+	    		System.out.print("Name of the directory: " + path + "\n");
+	    		controller.putFile(path+"/"+file, file);
 	     	}
 	    	if (rVal == JFileChooser.CANCEL_OPTION) {
 	    		filename.setText("You pressed cancel");
@@ -87,7 +87,7 @@ public class GUI extends JFrame {
 					dir.setText(c.getCurrentDirectory().toString());
 	    		
 					path = c.getCurrentDirectory().toString();
-					System.out.print("Name of the directory: " + path);
+					System.out.print("Name of the directory: " + path + "\n");
 					//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
 					controller.getFile(searchName, path, file);
 				}
@@ -160,6 +160,10 @@ public class GUI extends JFrame {
 			serverPort.setBounds(110,30,100,20);
 			hostAddr.setBounds(110,50,100,20);
 			hostPort.setBounds(110,70,100,20);
+            serverAddr.setText("localhost");
+            serverPort.setText("1234");
+            hostAddr.setText("localhost");
+            hostPort.setText("2000");
 			connectPanel.setLayout(new GridLayout(4,1));
 			connectPanel.add(textLabel1);
 			connectPanel.add(serverAddr);
@@ -179,7 +183,7 @@ public class GUI extends JFrame {
 				try {
 					int sportint = Integer.parseInt(sport);
 					int hportint = Integer.parseInt(hport);
-					System.out.print("Server address: " + saddr + " Server port: " + sport + " Host address: " + haddr + " Host port: " + hport);
+					System.out.print("Server address: " + saddr + " Server port: " + sport + " Host address: " + haddr + " Host port: " + hport + "\n");
 					controller = new DHTController(haddr, hport, saddr, sport);
 					connected = 1;
 					directory(controller.getDHTdir());
