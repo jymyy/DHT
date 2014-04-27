@@ -35,9 +35,9 @@ struct packet* unpack(byte *buf) {
     // offset by one. This same behaviour must be handled in recvall too.
     struct packet *packet = malloc(sizeof(struct packet));
     int offset = 0;
-    if (buf[0] == '?') {
-        offset = 1;
-    }
+    //if (buf[0] == '?') {
+    //    offset = 1;
+    //}
     memcpy(packet->target, buf+TARGET_OFFSET+offset, sizeof(sha1_t));
     memcpy(packet->sender, buf+SENDER_OFFSET+offset, sizeof(sha1_t));
     memcpy(&(packet->type), buf+TYPE_OFFSET+offset, sizeof(uint16_t));
@@ -52,13 +52,13 @@ struct packet* unpack(byte *buf) {
     }
 
     LOG_INFO(TAG_PACKET, "Unpacked %s", packettostr(packet->type));
-    if (LOG_LEVEL >= DEBUG_LEVEL) {
+    if (LOG_LEVEL >= INFO_LEVEL) {
         char target_str[SHA1_DEBUG_LEN];
         char sender_str[SHA1_DEBUG_LEN];
         shatostr(packet->target, target_str, SHA1_DEBUG_LEN);
         shatostr(packet->sender, sender_str, SHA1_DEBUG_LEN);
     
-        LOG_DEBUG(TAG_PACKET, "Target: %s, sender: %s, length: %d",
+        LOG_INFO(TAG_PACKET, "Target: %s, sender: %s, length: %d",
                   target_str, sender_str, packet->pl_len);
     }
     return packet;  

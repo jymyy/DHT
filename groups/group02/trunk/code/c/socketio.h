@@ -46,7 +46,8 @@
 int _sendpacket(int socket, byte *sendbuf, int packetlen);
 
 /*
- * Receive data until a complete packet is received and return length of received packet
+ * Receive data until a complete packet is received and return length of received packet.
+ * Return zero if sender has disconnected.
  */
 int recvpacket(int socket, byte *recvbuf, int bufsize);
 
@@ -56,7 +57,8 @@ int recvpacket(int socket, byte *recvbuf, int bufsize);
 int _sendcmd(int socket, byte *sendbuf, int cmdlen);
 
 /*
- * Receive command from GUI.
+ * Receive command from GUI and return length of received command.
+ * Return zero if GUI has disconnected.
  */
 int recvcmd(int socket, byte *recvbuf, int bufsize);
 

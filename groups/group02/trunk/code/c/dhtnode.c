@@ -161,45 +161,50 @@ int main(int argc, char **argv) {
                                DHT_DEREGISTER_BEGIN, NULL, 0);
                 }
             } else {
-                recvcmd(cmdsock, recvbuf, MAX_PACKET_SIZE);
-                struct cmd *cmd = unpack_cmd(recvbuf);
-                switch (cmd->type) {
-                    case CMD_PUT_DATA:
-                        // Add data
-                        sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                   DHT_PUT_DATA, cmd->payload, cmd->pl_len);
-                        break;
-                    case CMD_GET_DATA:
-                        // Request data
-                        sendpacket(servsock, sendbuf, cmd->key, host_key,
-                               DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
-                        break;
-                    case CMD_DUMP_DATA:
-                        // Delete data
-                        sendpacket(servsock, sendbuf, cmd->key, host_key,
-                               DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
-                        break;
-                    case CMD_TERMINATE:
-                        // Ask permission to leave
-                        LOG_INFO(TAG_NODE, "Requesting permission to leave");
-                        sendpacket(servsock, sendbuf, host_key, host_key,
-                                   DHT_DEREGISTER_BEGIN, NULL, 0);
-                        break;
-                    case CMD_ACQUIRE_REQUEST:
-                        // Request lock
-                        sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                   DHT_ACQUIRE_REQUEST, NULL, 0);
-                        break;
-                    case CMD_RELEASE_REQUEST:
-                        // Release lock
-                        sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                   DHT_RELEASE_REQUEST, NULL, 0);
-                        break;
-                    default:
-                        LOG_WARN(TAG_NODE, "Invalid command type %d", cmd->type);
+                status = recvcmd(cmdsock, recvbuf, MAX_PACKET_SIZE);
+                if (status == 0) {
+                    close(cmdsock);
+                    cmdsock = -1;
+                } else {
+                    struct cmd *cmd = unpack_cmd(recvbuf);
+                    switch (cmd->type) {
+                        case CMD_PUT_DATA:
+                            // Add data
+                            sendpacket(servsock, sendbuf, cmd->key, host_key,
+                                       DHT_PUT_DATA, cmd->payload, cmd->pl_len);
+                            break;
+                        case CMD_GET_DATA:
+                            // Request data
+                            sendpacket(servsock, sendbuf, cmd->key, host_key,
+                                   DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
+                            break;
+                        case CMD_DUMP_DATA:
+                            // Delete data
+                            sendpacket(servsock, sendbuf, cmd->key, host_key,
+                                   DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
+                            break;
+                        case CMD_TERMINATE:
+                            // Ask permission to leave
+                            LOG_INFO(TAG_NODE, "Requesting permission to leave");
+                            sendpacket(servsock, sendbuf, host_key, host_key,
+                                       DHT_DEREGISTER_BEGIN, NULL, 0);
+                            break;
+                        case CMD_ACQUIRE_REQUEST:
+                            // Request lock
+                            sendpacket(servsock, sendbuf, cmd->key, host_key,
+                                       DHT_ACQUIRE_REQUEST, NULL, 0);
+                            break;
+                        case CMD_RELEASE_REQUEST:
+                            // Release lock
+                            sendpacket(servsock, sendbuf, cmd->key, host_key,
+                                       DHT_RELEASE_REQUEST, NULL, 0);
+                            break;
+                        default:
+                            LOG_WARN(TAG_NODE, "Invalid command type %d", cmd->type);
+                    }
+                    free(cmd->payload);
+                    free(cmd);
                 }
-                free(cmd->payload);
-                free(cmd);
             }
             
         } else if (FD_ISSET(leftsock, &rfds) || FD_ISSET(rightsock, &rfds)) {
@@ -210,215 +215,224 @@ int main(int argc, char **argv) {
                 tempsock = &rightsock;
             }
 
-            recvpacket(*tempsock, recvbuf, MAX_PACKET_SIZE);
-            struct packet *packet = unpack(recvbuf);
-            switch (packet->type) {
-                case DHT_TRANSFER_DATA:
-                    // Store data received from neighbour
-                    add_key(ring, packet->target);
-                    write_block(blockdir, packet->target, packet->payload, packet->pl_len);
-                    blocks_no++;
-                    break;
-                case DHT_SEND_DATA:
-                    // Send received data to GUI
-                    sendcmd(cmdsock, sendbuf, packet->target,
-                            CMD_GET_DATA_ACK, packet->payload, packet->pl_len);
-                    break;
-                case DHT_NO_DATA:
-                    // Inform GUI that no data was found
-                    sendcmd(cmdsock, sendbuf, packet->target,
-                            CMD_GET_NO_DATA_ACK, NULL, 0);
-                    break;
-                case DHT_REGISTER_ACK:
-                    // Received all data from neighbour. Send DONE to server if
-                    // ACKs received from both neighbours.
-                    regs_no++;
-                    if (regs_no == 2) {
-                        sendpacket(servsock, sendbuf, host_key, host_key,
-                                   DHT_REGISTER_DONE, NULL, 0);
-                        sendcmd(cmdsock, sendbuf, host_key,
-                                CMD_REGISTER_DONE, NULL, 0);
-                    }
+            status = recvpacket(*tempsock, recvbuf, MAX_PACKET_SIZE);
+            if (status == 0) {
+                close(*tempsock);
+                *tempsock = -1;
+            } else {
+                struct packet *packet = unpack(recvbuf);
+                switch (packet->type) {
+                    case DHT_TRANSFER_DATA:
+                        // Store data received from neighbour
+                        add_key(ring, packet->target);
+                        write_block(blockdir, packet->target, packet->payload, packet->pl_len);
+                        blocks_no++;
+                        break;
+                    case DHT_SEND_DATA:
+                        // Send received data to GUI
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_GET_DATA_ACK, packet->payload, packet->pl_len);
+                        break;
+                    case DHT_NO_DATA:
+                        // Inform GUI that no data was found
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_GET_NO_DATA_ACK, NULL, 0);
+                        break;
+                    case DHT_REGISTER_ACK:
+                        // Received all data from neighbour. Send DONE to server if
+                        // ACKs received from both neighbours.
+                        regs_no++;
+                        if (regs_no == 2) {
+                            sendpacket(servsock, sendbuf, host_key, host_key,
+                                       DHT_REGISTER_DONE, NULL, 0);
+                            sendcmd(cmdsock, sendbuf, host_key,
+                                    CMD_REGISTER_DONE, NULL, 0);
+                        }
 
-                    close(*tempsock);
-                    *tempsock = -1;
-                    break;
-                case DHT_DEREGISTER_ACK:
-                    // Received all data from leaving neighbour
-                    sendpacket(servsock, sendbuf, packet->sender, host_key,
-                               DHT_DEREGISTER_DONE, NULL, 0);
-                    close(*tempsock);
-                    *tempsock = -1;
-                    break;
-                default:
-                    LOG_WARN(TAG_NODE, "Invalid packet type %d", packet->type);
+                        close(*tempsock);
+                        *tempsock = -1;
+                        break;
+                    case DHT_DEREGISTER_ACK:
+                        // Received all data from leaving neighbour
+                        sendpacket(servsock, sendbuf, packet->sender, host_key,
+                                   DHT_DEREGISTER_DONE, NULL, 0);
+                        close(*tempsock);
+                        *tempsock = -1;
+                        break;
+                    default:
+                        LOG_WARN(TAG_NODE, "Invalid packet type %d", packet->type);
+                }
+                free(packet->payload);
+                free(packet);
             }
-            free(packet->payload);
-            free(packet);
 
         } else if (FD_ISSET(servsock, &rfds)) {
             int tempsock;
-            recvpacket(servsock, recvbuf, MAX_PACKET_SIZE);
-            struct packet *packet = unpack(recvbuf);
-            struct tcp_addr temp_addr;
-            switch (packet->type) {
-                case DHT_REGISTER_FAKE_ACK:
-                    // First node in network
-                    sendpacket(servsock, sendbuf, host_key, host_key,
-                               DHT_REGISTER_DONE, NULL, 0);
+            status = recvpacket(servsock, recvbuf, MAX_PACKET_SIZE);
+            if (status == 0) {
+                DIE(TAG_NODE, "Server disconnected");
+            } else {
+                struct packet *packet = unpack(recvbuf);
+                struct tcp_addr temp_addr;
+                switch (packet->type) {
+                    case DHT_REGISTER_FAKE_ACK:
+                        // First node in network
+                        sendpacket(servsock, sendbuf, host_key, host_key,
+                                   DHT_REGISTER_DONE, NULL, 0);
 
-                    sendcmd(cmdsock, sendbuf, host_key,
-                            CMD_REGISTER_DONE, NULL, 0);
-                    break;
-                case DHT_REGISTER_BEGIN:
-                    // New node is trying to join; connect and send data
-                    build_tcp_addr(packet->payload, &temp_addr, NULL);
-                    open_conn(&tempsock, &temp_addr);
-                    init_hs(tempsock);
-                    
-                    // Hash neighbour address
-                    sha1_t nb_key;
-                    hash_addr(&temp_addr, nb_key);
-
-                    // Send data
-                    sha1_t mid_clock;
-                    sha1_t mid_counter;
-                    calc_mid(host_key, nb_key, mid_clock, 1);
-                    calc_mid(host_key, nb_key, mid_counter, -1);
-                    struct keyring *slice = slice_ring(ring, mid_clock, mid_counter);
-                    struct keyring *slice_n = slice;
-                    while (slice_n != NULL) {
-                        int blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
-                        if (blocklen > 0) {
-                            sendpacket(tempsock, sendbuf, slice_n->key, host_key,
-                                       DHT_TRANSFER_DATA, blockbuf, blocklen);
-                        }
-                        rm_block(blockdir, slice_n->key);
-                        blocks_no--;
-                    }
-                    free_ring(slice);
-
-                    // Send ACK to new node to inform that all data is sent
-                    sendpacket(tempsock, sendbuf, nb_key, nb_key,
-                            DHT_REGISTER_ACK, NULL, 0);
-                    close(tempsock);
-                    break;
-                case DHT_REGISTER_DONE:
-                    // TODO: Forget data sent to new neighbour (currently blocks are actually
-                    // dumped immediately after they are sent).
-                    break;
-                case DHT_DEREGISTER_BEGIN:
-                    // Other node leaves abnormally
-                    sendpacket(servsock, sendbuf, packet->sender, host_key,
-                               DHT_DEREGISTER_DONE, NULL, 0);
-                    break;
-                case DHT_DEREGISTER_ACK:
-                    // Server has responded to our attempt to leave, create connections
-                    // to both neighbours. Inform GUI that disconnection sequence has begun.
-                    build_tcp_addr(packet->payload, &left_addr, &right_addr);
-
-                    // Connect to left neighbour
-                    open_conn(&leftsock, &left_addr);
-                    init_hs(leftsock);
-
-                    // Connect to right neighbour
-                    open_conn(&rightsock, &right_addr);
-                    init_hs(rightsock);
-
-                    // Inform GUI
-                    sendcmd(cmdsock, sendbuf, packet->target,
-                            CMD_TERMINATE_ACK, NULL, 0);
-
-                    running = 0;
-                    break;
-                case DHT_DEREGISTER_DENY:
-                    // Disconnection attempt denied
-                    sendcmd(cmdsock, sendbuf, packet->target,
-                            CMD_TERMINATE_DENY, NULL, 0);
-                    LOG_WARN(TAG_NODE, "Request to leave denied");
-                    break;
-                case DHT_GET_DATA:
-                    // Other node requested data
-                    ; int isnotself = hashcmp(host_key, packet->sender);
-
-                    if (isnotself) {
+                        sendcmd(cmdsock, sendbuf, host_key,
+                                CMD_REGISTER_DONE, NULL, 0);
+                        break;
+                    case DHT_REGISTER_BEGIN:
+                        // New node is trying to join; connect and send data
                         build_tcp_addr(packet->payload, &temp_addr, NULL);
                         open_conn(&tempsock, &temp_addr);
                         init_hs(tempsock);
-                    }
+                        
+                        // Hash neighbour address
+                        sha1_t nb_key;
+                        hash_addr(&temp_addr, nb_key);
 
-                    // Check if we have requested data
-                    if (has_key(ring, packet->target)) {
-                        int blocklen = read_block(blockdir, packet->target,
-                                                  blockbuf, MAX_BLOCK_SIZE);
-                        if (blocklen > 0) {
+                        // Send data
+                        sha1_t mid_clock;
+                        sha1_t mid_counter;
+                        calc_mid(host_key, nb_key, mid_clock, 1);
+                        calc_mid(host_key, nb_key, mid_counter, -1);
+                        struct keyring *slice = slice_ring(ring, mid_clock, mid_counter);
+                        struct keyring *slice_n = slice;
+                        while (slice_n != NULL) {
+                            int blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
+                            if (blocklen > 0) {
+                                sendpacket(tempsock, sendbuf, slice_n->key, host_key,
+                                           DHT_TRANSFER_DATA, blockbuf, blocklen);
+                            }
+                            rm_block(blockdir, slice_n->key);
+                            blocks_no--;
+                        }
+                        free_ring(slice);
+
+                        // Send ACK to new node to inform that all data is sent
+                        sendpacket(tempsock, sendbuf, nb_key, nb_key,
+                                DHT_REGISTER_ACK, NULL, 0);
+                        close(tempsock);
+                        break;
+                    case DHT_REGISTER_DONE:
+                        // TODO: Forget data sent to new neighbour (currently blocks are actually
+                        // dumped immediately after they are sent).
+                        break;
+                    case DHT_DEREGISTER_BEGIN:
+                        // Other node leaves abnormally
+                        sendpacket(servsock, sendbuf, packet->sender, host_key,
+                                   DHT_DEREGISTER_DONE, NULL, 0);
+                        break;
+                    case DHT_DEREGISTER_ACK:
+                        // Server has responded to our attempt to leave, create connections
+                        // to both neighbours. Inform GUI that disconnection sequence has begun.
+                        build_tcp_addr(packet->payload, &left_addr, &right_addr);
+
+                        // Connect to left neighbour
+                        open_conn(&leftsock, &left_addr);
+                        init_hs(leftsock);
+
+                        // Connect to right neighbour
+                        open_conn(&rightsock, &right_addr);
+                        init_hs(rightsock);
+
+                        // Inform GUI
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_TERMINATE_ACK, NULL, 0);
+
+                        running = 0;
+                        break;
+                    case DHT_DEREGISTER_DENY:
+                        // Disconnection attempt denied
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_TERMINATE_DENY, NULL, 0);
+                        LOG_WARN(TAG_NODE, "Request to leave denied");
+                        break;
+                    case DHT_GET_DATA:
+                        // Other node requested data
+                        ; int isnotself = hashcmp(host_key, packet->sender);
+
+                        if (isnotself) {
+                            build_tcp_addr(packet->payload, &temp_addr, NULL);
+                            open_conn(&tempsock, &temp_addr);
+                            init_hs(tempsock);
+                        }
+
+                        // Check if we have requested data
+                        if (has_key(ring, packet->target)) {
+                            int blocklen = read_block(blockdir, packet->target,
+                                                      blockbuf, MAX_BLOCK_SIZE);
+                            if (blocklen > 0) {
+                                if (isnotself) {
+                                    sendpacket(tempsock, sendbuf, packet->target, host_key,
+                                           DHT_SEND_DATA, blockbuf, blocklen);
+                                    close(tempsock);
+                                } else {
+                                    sendcmd(cmdsock, sendbuf, packet->target,
+                                            CMD_GET_DATA_ACK, blockbuf, blocklen);
+                                }
+                            } else {
+                                LOG_ERROR(TAG_NODE ,"Error reading block");
+                            }
+
+                        } else {
                             if (isnotself) {
                                 sendpacket(tempsock, sendbuf, packet->target, host_key,
-                                       DHT_SEND_DATA, blockbuf, blocklen);
+                                       DHT_NO_DATA, NULL, 0);
                                 close(tempsock);
                             } else {
                                 sendcmd(cmdsock, sendbuf, packet->target,
-                                        CMD_GET_DATA_ACK, blockbuf, blocklen);
+                                        CMD_GET_NO_DATA_ACK, NULL, 0);
                             }
-                        } else {
-                            LOG_ERROR(TAG_NODE ,"Error reading block");
+                            
                         }
-
-                    } else {
-                        if (isnotself) {
-                            sendpacket(tempsock, sendbuf, packet->target, host_key,
-                                   DHT_NO_DATA, NULL, 0);
-                            close(tempsock);
-                        } else {
-                            sendcmd(cmdsock, sendbuf, packet->target,
-                                    CMD_GET_NO_DATA_ACK, NULL, 0);
+        
+                        break;
+                    case DHT_PUT_DATA:
+                        // Other node added data
+                        add_key(ring, packet->target);
+                        write_block(blockdir, packet->target, packet->payload, packet->pl_len);
+                        blocks_no++;
+                        sendpacket(servsock, sendbuf, packet->target, packet->sender,
+                                   DHT_PUT_DATA_ACK, NULL, 0);
+                        break;
+                    case DHT_PUT_DATA_ACK:
+                        // Data added
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_PUT_DATA_ACK, NULL, 0);
+                        break;
+                    case DHT_DUMP_DATA:
+                        // Other node requested data removal
+                        if (!(del_key(ring, packet->target))) {
+                            rm_block(blockdir, packet->target);
+                            blocks_no--;
                         }
-                        
-                    }
-    
-                    break;
-                case DHT_PUT_DATA:
-                    // Other node added data
-                    add_key(ring, packet->target);
-                    write_block(blockdir, packet->target, packet->payload, packet->pl_len);
-                    blocks_no++;
-                    sendpacket(servsock, sendbuf, packet->target, packet->sender,
-                               DHT_PUT_DATA_ACK, NULL, 0);
-                    break;
-                case DHT_PUT_DATA_ACK:
-                    // Data added
-                    sendcmd(cmdsock, sendbuf, packet->target,
-                            CMD_PUT_DATA_ACK, NULL, 0);
-                    break;
-                case DHT_DUMP_DATA:
-                    // Other node requested data removal
-                    if (!(del_key(ring, packet->target))) {
-                        rm_block(blockdir, packet->target);
-                        blocks_no--;
-                    }
-                    sendpacket(servsock, sendbuf, packet->target, packet->sender,
-                            DHT_DUMP_DATA_ACK, NULL, 0);
-                    break;
-                case DHT_DUMP_DATA_ACK:
-                    // Data removed
-                    sendcmd(cmdsock, sendbuf, packet->target,
-                            CMD_DUMP_DATA_ACK, NULL, 0);
-                    break;
-                case DHT_ACQUIRE_ACK:
-                    // Lock acquired
-                    sendcmd(cmdsock, sendbuf, packet->target,
-                            CMD_ACQUIRE_ACK, NULL, 0);
-                    break;
-                case DHT_RELEASE_ACK:
-                    // Lock released
-                    sendcmd(cmdsock, sendbuf, packet->target,
-                            CMD_RELEASE_ACK, NULL, 0);
-                    break;
-                default:
-                    LOG_WARN(TAG_NODE, "Invalid packet type %d", packet->type);
+                        sendpacket(servsock, sendbuf, packet->target, packet->sender,
+                                DHT_DUMP_DATA_ACK, NULL, 0);
+                        break;
+                    case DHT_DUMP_DATA_ACK:
+                        // Data removed
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_DUMP_DATA_ACK, NULL, 0);
+                        break;
+                    case DHT_ACQUIRE_ACK:
+                        // Lock acquired
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_ACQUIRE_ACK, NULL, 0);
+                        break;
+                    case DHT_RELEASE_ACK:
+                        // Lock released
+                        sendcmd(cmdsock, sendbuf, packet->target,
+                                CMD_RELEASE_ACK, NULL, 0);
+                        break;
+                    default:
+                        LOG_WARN(TAG_NODE, "Invalid packet type %d", packet->type);
+                }
+                free(packet->payload);
+                free(packet);
             }
-            free(packet->payload);
-            free(packet);
 
         } else if (FD_ISSET(listensock, &rfds)) {
             // Other node tries to connect

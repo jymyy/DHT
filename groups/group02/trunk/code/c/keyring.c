@@ -78,15 +78,19 @@ int del_key(struct keyring *ring, sha1_t key) {
         return 1;
     }
 
+    char key_str[SHA1_DEBUG_LEN];
+    shatostr(key, key_str, SHA1_DEBUG_LEN);
+
     struct keyring *pos = find_pos(ring, key);
     if (hashcmp(key, pos->key) == 0) {
         (pos->previous)->next = pos->next;
         (pos->next)->previous = pos->previous;
-        LOG_DEBUG(TAG_KEYRING, "Deleted key: %.*s", SHA1_KEY_LEN, key);
+
+        LOG_DEBUG(TAG_KEYRING, "Deleted key: %s", key_str);
         free(pos);
         return 0;
     } else {
-        LOG_WARN(TAG_KEYRING, "Couldn't delete key: %.*s", SHA1_KEY_LEN, key);
+        LOG_WARN(TAG_KEYRING, "Couldn't delete key: %s", key_str);
         return 1;
     }
 }

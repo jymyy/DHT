@@ -6,7 +6,7 @@ int _sendpacket(int socket, byte *sendbuf, int packetlen) {
 	while (bytes_sent < packetlen) {
 		bytes_sent += send(socket, sendbuf+bytes_sent, packetlen-bytes_sent, 0);
 	}
-    LOG_DEBUG(TAG_SOCKET, "Packet sent");
+    LOG_DEBUG(TAG_SOCKET, "Sent %d bytes", bytes_sent);
 	return bytes_sent;		
 }
 
@@ -22,7 +22,8 @@ int recvpacket(int socket, byte *recvbuf, int bufsize) {
 	while (bytes_missing > 0) {
 		bytes_received = recv(socket, recvbuf+bytes_total, bytes_missing, 0);
         if (bytes_received == 0) {
-            DIE(TAG_SOCKET, "Sender disconnected");
+            LOG_WARN(TAG_SOCKET, "Sender disconnected");
+            return 0;
         } else if (bytes_total > bufsize) {
             DIE(TAG_SOCKET, "Recvbuf overflow");
         }
@@ -31,9 +32,10 @@ int recvpacket(int socket, byte *recvbuf, int bufsize) {
 	}
 
 	// Adjust offset, see comments of "unpack" for more info
-	if (recvbuf[0] == '?') {
-			offset = 1;
-	}
+	// if (recvbuf[0] == '?') {
+	// 		offset = 1;
+    //         LOG_DEBUG(TAG_SOCKET, "Offsetting by 1");
+	// }
 
 	// Check length of the packet and receive more data if needed
 	memcpy(&pl_len, recvbuf+PL_LEN_OFFSET+offset, sizeof(uint16_t));
@@ -43,7 +45,8 @@ int recvpacket(int socket, byte *recvbuf, int bufsize) {
 	while (bytes_missing > 0) {
 		bytes_received = recv(socket, recvbuf+bytes_total, bytes_missing, 0);
         if (bytes_received == 0) {
-            DIE(TAG_SOCKET, "Sender disconnected");
+            LOG_WARN(TAG_SOCKET, "Sender disconnected");
+            return 0;
         } else if (bytes_total > bufsize) {
             DIE(TAG_SOCKET, "Recvbuf overflow");
         }
@@ -51,7 +54,7 @@ int recvpacket(int socket, byte *recvbuf, int bufsize) {
 		bytes_missing -= bytes_received;
 	}
 	
-	LOG_DEBUG(TAG_SOCKET, "Packet received");
+	LOG_DEBUG(TAG_SOCKET, "Received %d bytes", bytes_total);
 	return bytes_total;
 }
 
@@ -61,7 +64,7 @@ int _sendcmd(int socket, byte *sendbuf, int cmdlen) {
     while (bytes_sent < cmdlen) {
         bytes_sent += send(socket, sendbuf+bytes_sent, cmdlen-bytes_sent, 0);
     }
-    LOG_DEBUG(TAG_SOCKET, "Command sent");
+    LOG_DEBUG(TAG_SOCKET, "Sent %d bytes", bytes_sent);
     return bytes_sent;  
 }
 
@@ -76,7 +79,8 @@ int recvcmd(int socket, byte *recvbuf, int bufsize) {
     while (bytes_missing > 0) {
         bytes_received = recv(socket, recvbuf+bytes_total, bytes_missing, 0);
         if (bytes_received == 0) {
-            DIE(TAG_SOCKET, "GUI disconnected");
+            LOG_WARN(TAG_SOCKET, "GUI disconnected");
+            return 0;
         } else if (bytes_total > bufsize) {
             DIE(TAG_SOCKET, "Recvbuf overflow");
         }
@@ -86,12 +90,14 @@ int recvcmd(int socket, byte *recvbuf, int bufsize) {
 
     // Check length of the packet and receive more data if needed
     memcpy(&pl_len, recvbuf+CMD_PL_LEN_OFFSET, sizeof(uint16_t));
+    pl_len = ntohs(pl_len);
     bytes_received = 0;
     bytes_missing = pl_len;
     while (bytes_missing > 0) {
         bytes_received = recv(socket, recvbuf+bytes_total, bytes_missing, 0);
         if (bytes_received == 0) {
-            DIE(TAG_SOCKET, "GUI disconnected");
+            LOG_WARN(TAG_SOCKET, "GUI disconnected");
+            return 0;
         } else if (bytes_total > bufsize) {
             DIE(TAG_SOCKET, "Recvbuf overflow");
         }
@@ -99,7 +105,7 @@ int recvcmd(int socket, byte *recvbuf, int bufsize) {
         bytes_missing -= bytes_received;
     }
     
-    LOG_DEBUG(TAG_SOCKET, "Command received");
+    LOG_DEBUG(TAG_SOCKET, "Received %d bytes", bytes_total);
     return bytes_total;
 }
 
