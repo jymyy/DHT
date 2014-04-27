@@ -14,13 +14,13 @@ int pack(byte *buf, sha1_t target_key, sha1_t sender_key,
     }
 
     LOG_INFO(TAG_PACKET, "Packed %s", packettostr(type));
-    if (LOG_LEVEL >= DEBUG_LEVEL) {
+    if (LOG_LEVEL >= INFO_LEVEL) {
         char target_str[SHA1_DEBUG_LEN];
         char sender_str[SHA1_DEBUG_LEN];
         shatostr(target_key, target_str, SHA1_DEBUG_LEN);
         shatostr(sender_key, sender_str, SHA1_DEBUG_LEN);
     
-        LOG_DEBUG(TAG_PACKET, "Target: %s, sender: %s, length: %d",
+        LOG_INFO(TAG_PACKET, "Target: %s, sender: %s, length: %d",
                   target_str, sender_str, pl_len);
     }
     

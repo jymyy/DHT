@@ -9,7 +9,7 @@ int form_path(char *dir, char *fullpath, sha1_t key) {
     strcpy(fullpath, dir);
     strcat(fullpath, "/");
     strcat(fullpath, fname);
-    LOG_DEBUG(TAG_FILE, "Formed path: %s\n", fullpath);
+    LOG_DEBUG(TAG_FILE, "Formed path: %s", fullpath);
     return 0;
 }
 

@@ -71,15 +71,16 @@ int main(int argc, char **argv) {
     if (server_port == NULL) { server_port = "1234"; }
     if (blockdir == NULL) { blockdir = "blocks"; }
 
-    LOG_DEBUG(TAG_NODE, "Host address: %s", host_address);
-    LOG_DEBUG(TAG_NODE, "Host port: %s", host_port);
-    LOG_DEBUG(TAG_NODE, "Server address: %s", server_address);
-    LOG_DEBUG(TAG_NODE, "Server port: %s", server_port);
-    LOG_DEBUG(TAG_NODE, "Block directory: %s", blockdir);
+    LOG_INFO(TAG_NODE, "Host address: %s", host_address);
+    LOG_INFO(TAG_NODE, "Host port: %s", host_port);
+    LOG_INFO(TAG_NODE, "Server address: %s", server_address);
+    LOG_INFO(TAG_NODE, "Server port: %s", server_port);
+    LOG_INFO(TAG_NODE, "Block directory: %s", blockdir);
   
     int status = 0;     // Return value for some functions
     int running = 1;    // Flag for main loop (changed to 0 when disconnection sequence starts)
-    int regs_no = 0;    // Number of received DHT_REGISTER_ACKs
+    int regs_rcvd = 0;  // Number of received DHT_REGISTER_ACKs
+    int regs_sent = 0;  // Number of sent DHT_REGISTER_ACKs
     int blocks_no = 0;  // Number of maintained blocks
     
     // Address structs and keys
@@ -119,6 +120,11 @@ int main(int argc, char **argv) {
 
     hash_addr(&host_addr, host_key);
     hash_addr(&serv_addr, serv_key);
+    if (LOG_LEVEL >= INFO_LEVEL) {
+        char host_key_str[SHA1_STR_LEN];
+        shatostr(host_key, host_key_str, SHA1_STR_LEN);
+        LOG_INFO(TAG_NODE, "Host key: %s", host_key_str);
+    }
 
     struct keyring *ring = init_ring(host_key);
 
@@ -241,8 +247,8 @@ int main(int argc, char **argv) {
                     case DHT_REGISTER_ACK:
                         // Received all data from neighbour. Send DONE to server if
                         // ACKs received from both neighbours.
-                        regs_no++;
-                        if (regs_no == 2) {
+                        regs_rcvd++;
+                        if (regs_rcvd == 2) {
                             sendpacket(servsock, sendbuf, host_key, host_key,
                                        DHT_REGISTER_DONE, NULL, 0);
                             sendcmd(cmdsock, sendbuf, host_key,
@@ -292,24 +298,29 @@ int main(int argc, char **argv) {
                         // Hash neighbour address
                         sha1_t nb_key;
                         hash_addr(&temp_addr, nb_key);
-
-                        // Send data
-                        sha1_t mid_clock;
-                        sha1_t mid_counter;
-                        calc_mid(host_key, nb_key, mid_clock, 1);
-                        calc_mid(host_key, nb_key, mid_counter, -1);
-                        struct keyring *slice = slice_ring(ring, mid_clock, mid_counter);
-                        struct keyring *slice_n = slice;
-                        while (slice_n != NULL) {
-                            int blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
-                            if (blocklen > 0) {
-                                sendpacket(tempsock, sendbuf, slice_n->key, host_key,
-                                           DHT_TRANSFER_DATA, blockbuf, blocklen);
+                        if (regs_sent == 0) {
+                            regs_sent++;
+                            // Send data
+                            sha1_t mid_clock;
+                            sha1_t mid_counter;
+                            calc_mid(host_key, nb_key, mid_clock, 1);
+                            calc_mid(host_key, nb_key, mid_counter, -1);
+                            struct keyring *slice = slice_ring(ring, mid_clock, mid_counter);
+                            struct keyring *slice_n = slice;
+                            while (slice_n != NULL) {
+                                int blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
+                                if (blocklen > 0) {
+                                    sendpacket(tempsock, sendbuf, slice_n->key, host_key,
+                                               DHT_TRANSFER_DATA, blockbuf, blocklen);
+                                }
+                                rm_block(blockdir, slice_n->key);
+                                blocks_no--;
+                                slice_n = slice_n->next;
                             }
-                            rm_block(blockdir, slice_n->key);
-                            blocks_no--;
+                            free_ring(slice);
+                        } else {
+                            regs_sent = 0;
                         }
-                        free_ring(slice);
 
                         // Send ACK to new node to inform that all data is sent
                         sendpacket(tempsock, sendbuf, nb_key, nb_key,
@@ -460,7 +471,7 @@ int main(int argc, char **argv) {
     // to both neighbours have been established. Send data to
     // neighbours and wait confirmation from server.
     int disconnecting = 1;
-    int deregs_no = 0;
+    int deregs_rcvd = 0;
 
     sha1_t left_key;
     hash_addr(&left_addr, left_key);
@@ -505,8 +516,8 @@ int main(int argc, char **argv) {
             if (packet->type == DHT_DEREGISTER_DONE) {
                     // Simply leave after receiving confirmations from
                     // both neighbours
-                    deregs_no++;
-                    if (deregs_no == 2) {
+                    deregs_rcvd++;
+                    if (deregs_rcvd == 2) {
                         sendcmd(cmdsock, sendbuf, packet->target,
                                 CMD_DEREGISTER_DONE, NULL, 0);
                         disconnecting = 0;
