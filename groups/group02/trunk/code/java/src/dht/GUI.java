@@ -46,7 +46,26 @@ public class GUI extends JFrame {
 	    		
 	    		path = c.getCurrentDirectory().toString();
 	    		System.out.print("Name of the directory: " + path);
-	    		controller.putFile(path, file);
+				String searchName = (String)JOptionPane.showInputDialog(
+						GUI.this, 
+						"Give a filename to be saved in DHT",
+						"Get file",
+						JOptionPane.PLAIN_MESSAGE,
+						null,
+						null,
+						null);
+	    		
+	    		int response = controller.putFile(path+"/"+file, searchName);
+				if (response == 0) {
+					controller.getDHTdir();
+					JOptionPane.showMessageDialog(null, "Putting file completed.");
+				}
+				else if (response == 1) {
+					JOptionPane.showMessageDialog(null, "Putting file failed.");
+				}
+				else {
+					JOptionPane.showMessageDialog(null, "IOExceptation while putting file.");
+				}
 	     	}
 	    	if (rVal == JFileChooser.CANCEL_OPTION) {
 	    		filename.setText("You pressed cancel");
@@ -86,7 +105,20 @@ public class GUI extends JFrame {
 					path = c.getCurrentDirectory().toString();
 					System.out.print("Name of the directory: " + path);
 					//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
-					controller.getFile(searchName, path, file);
+					int response = controller.getFile(searchName, path, file);
+					if (response == 0) {
+						controller.getDHTdir();
+						JOptionPane.showMessageDialog(null, "Putting file completed.");
+					}
+					else if (response == 1) {
+						JOptionPane.showMessageDialog(null, "File not found in DHT.");
+					}
+					else if (response == 2) {
+						JOptionPane.showMessageDialog(null, "File corrupted, download aborted.");
+					}
+					else {
+						JOptionPane.showMessageDialog(null, "Error.");
+					}
 				}
 				if (rVal == JFileChooser.CANCEL_OPTION) {
 					filename.setText("You pressed cancel");
@@ -115,7 +147,17 @@ public class GUI extends JFrame {
 						null,
 						null);
 		    		System.out.print(searchName);
-		    		controller.dumpFile(searchName);
+		    		int response = controller.dumpFile(searchName);
+					if (response == 0) {
+						controller.getDHTdir();
+						JOptionPane.showMessageDialog(null, "Dumping file completed.");
+					}
+					else if (response == 1) {
+						JOptionPane.showMessageDialog(null, "File not found in DHT.");
+					}
+					else {
+						JOptionPane.showMessageDialog(null, "Error.");
+					}
 		    }
 			
 			
@@ -193,18 +235,19 @@ public class GUI extends JFrame {
     		if (connected == 1) {
     		int terminate = controller.terminate();
     		if (terminate == 0) {
-    		System.exit(0);
+    			System.exit(0);
     		}
     		else if (terminate == 1)
     		{
     			JOptionPane.showMessageDialog(null, "Termination denied.");
     			}
-    		else {
+    		else if (terminate == -1) {
     			JOptionPane.showMessageDialog(null, "Termination failed.");
     			}
     		}
     		else {
-    		JOptionPane.showMessageDialog(null, "Not connected to any server.");
+    			JOptionPane.showMessageDialog(null, "Not connected to any server.");
+    			System.exit(0);
     		}
     	}
 	}
@@ -219,13 +262,13 @@ public class GUI extends JFrame {
 	    		if (connected == 1) {
 	        		int terminate = controller.terminate();
 	        		if (terminate == 0) {
-	        		System.exit(0);
+	        			System.exit(0);
 	        		}
 	        		else if (terminate == 1)
 	        		{
 	        			JOptionPane.showMessageDialog(null, "Termination denied.");
 	        			}
-	        		else {
+	        		else if (terminate == -1) {
 	        			JOptionPane.showMessageDialog(null, "Termination failed.");
 	        			}
 	        		}
@@ -239,7 +282,7 @@ public class GUI extends JFrame {
 	
 	// Progress bar
 	
-	class Progressbar {
+	public class Progressbar {
 		JProgressBar progressBar;
 		int maxValue;
 		int init;
@@ -467,7 +510,7 @@ public class GUI extends JFrame {
 	    public void actionPerformed(ActionEvent e) {
 	    try {
 	    	// TODO: CHANGE LOCATION!
-	    	File documentation = new File("/home/group02/releases/iteration1/doc/iteration1.pdf");
+	    	File documentation = new File("home/group02/releases/iteration1/doc/iteration1.pdf");
 	    	Desktop.getDesktop().open(documentation);
 	    } catch (Exception ex) {
 	    	JOptionPane.showMessageDialog(null, "Documentation file not found.");
@@ -487,5 +530,6 @@ public class GUI extends JFrame {
 	}
 	
 }
+
 
 
