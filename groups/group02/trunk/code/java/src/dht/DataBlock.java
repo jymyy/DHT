@@ -6,6 +6,7 @@ import java.nio.*;
  * DataBlock class represents a data block that can be given to the DHTnode
  **/
 public class DataBlock {
+	public static final String TAG = "DataBlock"; 
 	//Command block
 	public static final int KEY_OFFSET = 0;				// key [20]
 	public static final int CMD_TYPE_OFFSET = 20;		// Command Type [2]

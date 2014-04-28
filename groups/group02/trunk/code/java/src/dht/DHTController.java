@@ -31,7 +31,7 @@ public class DHTController {
 	
 	public static final int MAX_BLOCK_SIZE = 65535;
 	public static final int MAX_BLOCK_PL_SIZE = 65531;
-	public static final int CMD_HEADER = 28;
+
 	String hostIP;
 	String hostPort;
 	String serverIP;
@@ -48,15 +48,19 @@ public class DHTController {
 	private byte[] dirKey;
 	
 	
-	DHTController(String hostIP, String hostPort, String serverIP, String serverPort) {
+	DHTController(String hostIP, String hostPort, String serverIP, String serverPort) throws Exception {
 		this.hostIP = hostIP;
 		this.hostPort = hostPort;
 		this.serverIP = serverIP;
 		this.serverPort = serverPort;
 		this.gui = GUI.gui;
 		
-		this.nodeIO = new NodeIO(this); 
-		nodeIO.startNode();
+		try {
+			this.nodeIO = new NodeIO(this); 
+			nodeIO.startNode();
+		} catch (IOException e) {
+			throw e;
+		}
 		
 		// Get local copy of DHT directory
 		dhtDir = new LinkedList<String>();
@@ -80,6 +84,7 @@ public class DHTController {
 	 *  0 if successful
 	 *  1 if an error occurred with
 	 *  2 if IOError occurs
+	 *  3 if 
 	 */
 	public int putFile(String filePath, String dhtFileName) {
 		try {
@@ -92,7 +97,9 @@ public class DHTController {
 				totalBlocks++;
 			}
 			// Init progress bar
-			startProgress(1, totalBlocks*2 + 1 , "Uploading file " + dhtFileName);
+			startProgress(1, totalBlocks*2 +1 , "Uploading file " + dhtFileName);
+			
+			
 
 			InputStream fis = new FileInputStream(file);
 			byte[] nextPayloadBuf;
@@ -202,7 +209,7 @@ public class DHTController {
 			return 1;
 		}
 		byte[] bTotalBlocks = new byte[2];
-		System.arraycopy(firstBlock, CMD_HEADER, bTotalBlocks, 0, 2);
+		System.arraycopy(firstBlock, DataBlock.DATABLOCK_OFFSET, bTotalBlocks, 0, 2);
 		ByteBuffer bb = ByteBuffer.wrap(bTotalBlocks);
 		int totalBlocks = (int) bb.getShort(); 
 		// Start progress bar for downloading
@@ -229,9 +236,14 @@ public class DHTController {
 	public int terminate() {
 		// TODO Fix and add progress bar!!
 		startProgress(0, 3, "Terminating connection");
+		
+		
 		this.nodeIO.sendCommand(DataBlock.getCommand(CMD_TERMINATE, null));
 		Log.debug(TAG, "Terminate command send, waiting for node's response");
 		addProgress();
+		
+		
+		
 		byte[] nodeResponse = this.nodeIO.readCommand();
 		addProgress();
 		int responseCode = extractResponseCode(nodeResponse);
@@ -270,6 +282,7 @@ public class DHTController {
 	 * DHT, updates the local copy and returns it.
 	 */
 	public String[] refreshDHTdir() {
+		startProgress(0,3,"Refreshing the local copy of the DHT directory");
 		getDir();
 		String[] dirArray = this.dhtDir.toArray(new String[dhtDir.size()]);
 		return dirArray;
@@ -277,8 +290,14 @@ public class DHTController {
 	
 	
 	
-	
-	private int getDir() { // TODO Add progress bar
+	/**
+	 * Updates the local copy of the DHT directory
+	 * Increments progress bar three times
+	 * @return
+	 * 	0 if successful
+	 * -1 if fails
+	 */
+	private int getDir() {
 		// Directory format: totalFiles[2], file1nameSize[2], file1name[], file1nameSize[2], file1name[]... 
 		Log.debug(TAG, "Getting DHT directory.");
 		byte[] nodeResponse = getBlock(dirKey);
@@ -300,13 +319,13 @@ public class DHTController {
 			}
 		}
 		else {
-			if (nodeResponse.length == (CMD_HEADER +2)) {
+			if (nodeResponse.length == (DataBlock.DATABLOCK_OFFSET +2)) {
 				dhtDir = new LinkedList<String>();
 				return 0;
 			}
 			// Read dirSize
 			byte[] bufArr = new byte[2];
-			System.arraycopy(nodeResponse, CMD_HEADER, bufArr, 0, 2);
+			System.arraycopy(nodeResponse, DataBlock.DATABLOCK_OFFSET, bufArr, 0, 2);
 			ByteBuffer wrapped = ByteBuffer.wrap(nodeResponse);
 			int dirSize = (int) wrapped.getChar();
 			
@@ -318,13 +337,13 @@ public class DHTController {
 			while (file < dirSize) {
 				// Read fileName length
 				bufArr = new byte[2];	
-				System.arraycopy(nodeResponse, CMD_HEADER + offset, bufArr, 0, 2);
+				System.arraycopy(nodeResponse, DataBlock.DATABLOCK_OFFSET + offset, bufArr, 0, 2);
 				wrapped = ByteBuffer.wrap(nodeResponse);
 				fileNameSize = (int) wrapped.getChar();
 				offset = offset +2;
 				// Read fileName
 				fileNameArr = new byte[fileNameSize];
-				System.arraycopy(nodeResponse, CMD_HEADER + offset, fileNameArr, 0, fileNameSize);
+				System.arraycopy(nodeResponse, DataBlock.DATABLOCK_OFFSET + offset, fileNameArr, 0, fileNameSize);
 				offset = offset + fileNameSize;
 				if (offset >= nodeResponse.length) {
 					Log.error(TAG, "DHT directory block is corrupted.");
@@ -334,11 +353,18 @@ public class DHTController {
 				// Add file name to local directory copy
 				dhtDir.add(new String(fileNameArr));
 			}
+			addProgress();
 		}
 		return 0;
 	}
 	
 	
+	/**
+	 * Replaces the DHT directory with the local copy of the directory 
+	 * @return
+	 * 	0 if successful
+	 * -1 if fails
+	 */
 	private int putDir() { // TODO Add progress bar
 		ByteBuffer b;
 		byte[] bytes;
@@ -520,6 +546,13 @@ public class DHTController {
 			progBarMax = 0;
 		}
 		else {
+			
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			this.progressBar.update(progBarValue);
 		}
 	}

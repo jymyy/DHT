@@ -7,7 +7,7 @@ import java.net.*;
 import java.nio.ByteBuffer;
 
 public class NodeIO {
-	public static String TAG = "NodeIO";
+	private static String TAG = "NodeIO";
 
 	boolean printSends = false;
 
@@ -25,19 +25,19 @@ public class NodeIO {
 	}
 	
 	
-	public void startNode() {
-		try {
-			/*
-			String[] cmd = {"", this.controller.hostIP, this.controller.hostPort, 
-					this.controller.serverIP, this.controller.serverPort};
-			Runtime runTime = Runtime.getRuntime();
-			runTime.exec(cmd);
-			*/
-			nodeSoc = this.connectNode();
-			
-		} catch (Exception e) {
-			e.printStackTrace();
+	public void startNode() throws IOException {
+
+		/*
+		String[] cmd = {"", this.controller.hostIP, this.controller.hostPort, 
+				this.controller.serverIP, this.controller.serverPort};
+		Runtime runTime = Runtime.getRuntime();
+		runTime.exec(cmd);
+		*/
+		nodeSoc = this.connectNode();
+		if (nodeSoc == null) {
+			throw new IOException();
 		}
+
 	}
 	
 	public Socket connectNode() {
@@ -57,8 +57,6 @@ public class NodeIO {
 			} else {
 				Log.info(TAG, "Failed to connect to node");
 			}
-
-			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
