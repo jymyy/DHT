@@ -24,6 +24,8 @@ public class GUI extends JFrame {
 	JPanel panel;
     JScrollPane directory;
     JLabel dirText;
+    
+    static public GUI gui;
 	
 	// Choosing a file to be put into DHT
     
@@ -309,6 +311,8 @@ public class GUI extends JFrame {
 	// Initialization for main window and GUI
 	
 	public GUI() {
+		
+		gui = this;
 		  
 		// Setting up main window
 		setTitle("DHT GUI");
@@ -460,14 +464,14 @@ public class GUI extends JFrame {
 	    });
 	    
 	    dMenuItem.addActionListener(new ActionListener() {
-	    	public void actionPerformed(ActionEvent e) {
-	    		try {
-	    			// TODO: CHANGE LOCATION!
-	    			File documentation = new File("C:/Users/Oem/Desktop/dht/src/dht/documentation.pdf");
-	    			Desktop.getDesktop().open(documentation);
-	    		} catch (IOException ex) {
-	    			JOptionPane.showMessageDialog(null, "Documentation file not found.");
-	    		}
+	    public void actionPerformed(ActionEvent e) {
+	    try {
+	    	// TODO: CHANGE LOCATION!
+	    	File documentation = new File("/home/group02/releases/iteration1/doc/iteration1.pdf");
+	    	Desktop.getDesktop().open(documentation);
+	    } catch (Exception ex) {
+	    	JOptionPane.showMessageDialog(null, "Documentation file not found.");
+	    	}
 	    	}
 	    });
 	    
@@ -483,6 +487,5 @@ public class GUI extends JFrame {
 	}
 	
 }
-
 
 
