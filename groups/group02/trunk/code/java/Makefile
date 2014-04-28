@@ -8,7 +8,7 @@ JAR = jar
 BUILDDIR = build
 SOURCEDIR = src
 JARFILE = $(BUILDDIR)/DHT.jar
-JARENTRY = dht.DHTUI
+JARENTRY = dht.GUI
 
 
 .SUFFIXES: .java .class
