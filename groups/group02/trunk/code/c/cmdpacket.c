@@ -43,7 +43,7 @@ const char* cmdtostr(int type) {
         case CMD_GET_DATA:
             return "CMD_GET_DATA";
         case CMD_DUMP_DATA:
-            return "CMD_DUMP_DAT";
+            return "CMD_DUMP_DATA";
         case CMD_TERMINATE:
             return "CMD_TERMINATE";
         case CMD_ACQUIRE_REQUEST:
