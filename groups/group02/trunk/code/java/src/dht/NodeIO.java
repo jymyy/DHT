@@ -72,7 +72,11 @@ public class NodeIO {
 	public void sendCommand(byte[] command) {
 		
 		try {
-            this.outStream.write(command);
+            if (nodeSocket.isClosed()) {
+                Log.warn(TAG, "Socket to node is closed");
+            } else {
+                this.outStream.write(command);
+            }
 
 		} catch (IOException e) {
 		    Log.error(TAG, "Error when sending command to node");
@@ -85,6 +89,11 @@ public class NodeIO {
 	 * @return Array of read bytes
 	 */
 	public byte[] readCommand() {
+        if (this.nodeSocket.isClosed()) {
+            Log.warn(TAG, "Socket to node is closed");
+            return new byte[0];
+        }
+
 		byte[] bytesReadBuf = new byte[DataBlock.CMD_HEADER_LENGTH + DataBlock.MAX_BLOCK_SIZE];
 
 		int bytesTotal = 0;

@@ -28,6 +28,8 @@ public class DHTController {
 
 	private final char CMD_DEREGISTER_DONE = 22;
 	private final char CMD_BLOCKS_MAINTAINED = 23;
+
+    private final char CMD_ERROR = 30;
 	
 	public static final int MAX_BLOCK_SIZE = 65535;
 	public static final int MAX_BLOCK_PL_SIZE = 65531;
@@ -442,13 +444,18 @@ public class DHTController {
 		byte[] nodeResponse = this.nodeIO.readCommand();
 		char responseCode = extractResponseCode(nodeResponse);
 		addProgress();
-		if (responseCode == this.CMD_PUT_DATA_ACK) {
-			Log.debug(TAG, "Response: put OK.");
-			return 0;
-		}
-		else {
-			return -1;
-		}
+
+        switch (responseCode) {
+            case CMD_PUT_DATA_ACK:
+                Log.debug(TAG, "Response: put OK.");
+                return 0;
+            case CMD_ERROR:
+                Log.error(TAG, "Response: CMD_ERROR");
+                return -1;
+            default:
+                Log.warn(TAG, "Response: Unknown");
+                return -1;
+        }
 		
 	}
 	
@@ -470,19 +477,20 @@ public class DHTController {
 		byte [] nodeResponse = this.nodeIO.readCommand();
 		addProgress();
 		char responseCode = extractResponseCode(nodeResponse);
-		
-		if (responseCode == this.CMD_GET_DATA_ACK) {
-			Log.debug(TAG, "Response: get OK");
-			return nodeResponse;
-		}
-		else if (responseCode == this.CMD_GET_NO_DATA_ACK) {
-			Log.debug(TAG, "Response: No data");
-			return null;
-		}
-		else {
-			Log.debug(TAG, "Response: Unknown");
-			return null;
-		}
+
+        switch (responseCode) {
+            case CMD_GET_DATA_ACK:
+                Log.debug(TAG, "Response: get OK");
+                return nodeResponse;
+            case CMD_GET_NO_DATA_ACK:
+                Log.debug(TAG, "Response: No data");
+                return null;
+            case CMD_ERROR:
+                Log.error(TAG, "Response: CMD_ERROR");
+            default:
+                Log.warn(TAG, "Response: Unknown");
+                return null;
+        }
 	}
 	
 	/**
@@ -501,15 +509,18 @@ public class DHTController {
 		byte[] nodeResponse = this.nodeIO.readCommand();
 		int responseCode = extractResponseCode(nodeResponse);
 		addProgress();
-		if (responseCode == this.CMD_DUMP_DATA_ACK) {
-			Log.debug(TAG, "Response: dump OK");
-			return 0;
-		}
-		else {
-			Log.debug(TAG, "Response: Unknown");
-			return -1;
-		}
-		
+
+        switch (responseCode) {
+            case CMD_DUMP_DATA_ACK:
+                Log.debug(TAG, "Response: put OK.");
+                return 0;
+            case CMD_ERROR:
+                Log.error(TAG, "Response: CMD_ERROR");
+                return -1;
+            default:
+                Log.warn(TAG, "Response: Unknown");
+                return -1;
+        }
 	}
 	
 	
@@ -560,11 +571,16 @@ public class DHTController {
 
 	// Returns the responseCode extracted from DHTnode's response command
 	private char extractResponseCode(byte[] nodeResponse) {
-		byte[] responseCodeArr = new byte[2];
-		System.arraycopy(nodeResponse, 20, responseCodeArr, 0, 2);
-		ByteBuffer wrapped = ByteBuffer.wrap(responseCodeArr); // big-endian by default
-		char responseCode = wrapped.getChar();
-		return responseCode;
-	}
+
+        if (nodeResponse.length == 0) {
+            return CMD_ERROR;
+        } else {
+            byte[] responseCodeArr = new byte[2];
+            System.arraycopy(nodeResponse, 20, responseCodeArr, 0, 2);
+            ByteBuffer wrapped = ByteBuffer.wrap(responseCodeArr); // big-endian by default
+            char responseCode = wrapped.getChar();
+            return responseCode;
+        }
+    }
 	
 }
