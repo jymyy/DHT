@@ -159,7 +159,9 @@ struct keyring* slice_ring(struct keyring *ring, sha1_t range_begin, sha1_t rang
     struct keyring *end = find_pos(ring, range_end);
 
     // Select the key that is inside the range
-    if (hashcmp(begin->key, range_begin) != 0) {
+    if (begin == end && hashcmp(begin->key, range_begin) != 0) {
+        return NULL;
+    } else if (hashcmp(begin->key, range_begin) != 0) {
         begin = begin->next;
     }
 
@@ -167,8 +169,17 @@ struct keyring* slice_ring(struct keyring *ring, sha1_t range_begin, sha1_t rang
     int ord_end = hashcmp(end->key, ring->key);
 
     if (ord_begin == 0 && ord_end == 0) {
-        // Only host key in ring
-        return NULL;
+        // Only host key in ring or slice consists of whole ring
+        if (ring != ring->next) {
+            begin = ring->next;
+            (ring->next)->previous = NULL;
+            (ring->previous)->next = NULL;
+            ring->previous = NULL;
+            ring->next = NULL;
+            return begin;
+        } else {
+            return NULL;
+        }
     } else if (ord_begin < 0 && 0 < ord_end) {
         // Remove host key from slice
         (ring->previous)->next = ring->next;

@@ -80,7 +80,6 @@ int main(int argc, char **argv) {
     int status = 0;     // Return value for some functions
     int running = 1;    // Flag for main loop (changed to 0 when disconnection sequence starts)
     int regs_rcvd = 0;  // Number of received DHT_REGISTER_ACKs
-    int regs_sent = 0;  // Number of sent DHT_REGISTER_ACKs
     int blocks_no = 0;  // Number of maintained blocks
     
     // Address structs and keys
@@ -298,29 +297,23 @@ int main(int argc, char **argv) {
                         // Hash neighbour address
                         sha1_t nb_key;
                         hash_addr(&temp_addr, nb_key);
-                        if (regs_sent == 0) {
-                            regs_sent++;
-                            // Send data
-                            sha1_t mid_clock;
-                            sha1_t mid_counter;
-                            calc_mid(host_key, nb_key, mid_clock, 1);
-                            calc_mid(host_key, nb_key, mid_counter, -1);
-                            struct keyring *slice = slice_ring(ring, mid_clock, mid_counter);
-                            struct keyring *slice_n = slice;
-                            while (slice_n != NULL) {
-                                int blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
-                                if (blocklen > 0) {
-                                    sendpacket(tempsock, sendbuf, slice_n->key, host_key,
-                                               DHT_TRANSFER_DATA, blockbuf, blocklen);
-                                }
-                                rm_block(blockdir, slice_n->key);
-                                blocks_no--;
-                                slice_n = slice_n->next;
+                        sha1_t mid_clock;
+                        sha1_t mid_counter;
+                        calc_mid(host_key, nb_key, mid_clock, 1);
+                        calc_mid(host_key, nb_key, mid_counter, -1);
+                        struct keyring *slice = slice_ring(ring, mid_clock, mid_counter);
+                        struct keyring *slice_n = slice;
+                        while (slice_n != NULL) {
+                            int blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
+                            if (blocklen > 0) {
+                                sendpacket(tempsock, sendbuf, slice_n->key, host_key,
+                                           DHT_TRANSFER_DATA, blockbuf, blocklen);
                             }
-                            free_ring(slice);
-                        } else {
-                            regs_sent = 0;
+                            rm_block(blockdir, slice_n->key);
+                            blocks_no--;
+                            slice_n = slice_n->next;
                         }
+                        free_ring(slice);
 
                         // Send ACK to new node to inform that all data is sent
                         sendpacket(tempsock, sendbuf, nb_key, nb_key,
@@ -562,6 +555,7 @@ int main(int argc, char **argv) {
             // Inform GUI about number of blocks still maintained
             sendcmd(cmdsock, sendbuf, host_key,
                     CMD_BLOCKS_MAINTAINED, (byte *)&blocks_no, sizeof(int));
+            LOG_DEBUG(TAG_NODE, "Blocks maintained %d", blocks_no);
         }
     }
 
