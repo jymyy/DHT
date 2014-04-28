@@ -6,20 +6,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
-
-// Progress bar
-package dht;
-
-import java.awt.Rectangle;
-
-import javax.swing.BorderFactory;
-import javax.swing.BoxLayout;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JProgressBar;
-
-// Progress bar
+import java.awt.*;
 
 public class Progressbar {
 	JProgressBar progressBar;

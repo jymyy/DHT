@@ -53,9 +53,8 @@ public class DHTController {
 		this.serverIP = serverIP;
 		this.serverPort = serverPort;
 		
-		this.nodeIO = new NodeIO(this); 
-		Socket ns = nodeIO.connectNode();
-		if (ns == null) {
+		this.nodeIO = new NodeIO(this);
+		if (!nodeIO.connectNode()) {
 			throw new IOException("Error opening socket to node");
 		}
 		
@@ -499,7 +498,7 @@ public class DHTController {
 		this.nodeIO.sendCommand(DataBlock.getCommand(this.CMD_DUMP_DATA, blockKey));
 		Log.debug(TAG, "Dump command send, waiting for node's response.");
 		addProgress();
-		byte [] nodeResponse = this.nodeIO.readCommand();
+		byte[] nodeResponse = this.nodeIO.readCommand();
 		int responseCode = extractResponseCode(nodeResponse);
 		addProgress();
 		if (responseCode == this.CMD_DUMP_DATA_ACK) {
