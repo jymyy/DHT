@@ -24,22 +24,6 @@ public class NodeIO {
 		this.controller = controller;
 	}
 	
-	
-	public void startNode() throws IOException {
-
-		/*
-		String[] cmd = {"", this.controller.hostIP, this.controller.hostPort, 
-				this.controller.serverIP, this.controller.serverPort};
-		Runtime runTime = Runtime.getRuntime();
-		runTime.exec(cmd);
-		*/
-		nodeSoc = this.connectNode();
-		if (nodeSoc == null) {
-			throw new IOException();
-		}
-
-	}
-	
 	public Socket connectNode() {
 		Socket nodeSocket = null;
 		int hostPort = 0;
@@ -55,10 +39,10 @@ public class NodeIO {
 			if (shakeBuf[0] == fromNodeShake[0] && shakeBuf[1] == fromNodeShake[1]) {
 				Log.info(TAG, "Connected to node");
 			} else {
-				Log.info(TAG, "Failed to connect to node");
+				Log.error(TAG, "Invalid handshake response from node");
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			Log.error(TAG, "Failed to open connection to node");
 		}
 		
 		return nodeSocket;

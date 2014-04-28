@@ -1,5 +1,6 @@
 package dht;
 
+import java.net.Socket;
 import java.nio.*;
 import java.security.MessageDigest;
 import java.io.*;
@@ -55,21 +56,15 @@ public class DHTController {
 		this.serverPort = serverPort;
 		this.gui = GUI.gui;
 		
-		try {
-			this.nodeIO = new NodeIO(this); 
-			nodeIO.startNode();
-		} catch (IOException e) {
-			throw e;
+		this.nodeIO = new NodeIO(this); 
+		Socket ns = nodeIO.connectNode();
+		if (ns == null) {
+			throw new IOException("Error opening socket to node");
 		}
 		
 		// Get local copy of DHT directory
 		dhtDir = new LinkedList<String>();
 		dirKey = getSHA1("DHTDIR");
-		
-		
-		
-		
-		
 	}
 	
 	
@@ -221,7 +216,7 @@ public class DHTController {
 			dumpBlock(blockKey);
 			addProgress(); // Notify that the operation has progressed
 			blockNo++;
-		} while (blockNo < totalBlocks);
+		} while (blockNo <= totalBlocks);
 		
 		return 0;
 	}
