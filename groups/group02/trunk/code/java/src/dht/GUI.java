@@ -12,7 +12,7 @@ import java.util.*;
 public class GUI extends JFrame {
 	
 	// Basic variables
-	
+	public static String TAG = "GUI";
 	DHTController controller;
 	JProgressBar progressBar;
 	int connected = 0;
@@ -40,15 +40,15 @@ public class GUI extends JFrame {
 	    		filename.setText(c.getSelectedFile().getName());
 	    		
 	    		file = c.getSelectedFile().getName();
-	    		System.out.print("Name of the file: " + file + "\n");
+	    		Log.info(TAG, "Name of the file: " + file);
 	    		
 	    		dir.setText(c.getCurrentDirectory().toString());
 	    		
 	    		path = c.getCurrentDirectory().toString();
-	    		System.out.print("Name of the directory: " + path);
+	    		Log.info(TAG, "Directory: " + path);
 				String searchName = (String)JOptionPane.showInputDialog(
 						GUI.this, 
-						"Give a filename to be saved in DHT",
+						"Give a filename to be saved ",
 						"Get file",
 						JOptionPane.PLAIN_MESSAGE,
 						null,
@@ -58,10 +58,13 @@ public class GUI extends JFrame {
 	    		int response = controller.putFile(path+"/"+file, searchName);
 				if (response == 0) {
 					controller.getDHTdir();
-					JOptionPane.showMessageDialog(null, "Putting file completed.");
+					JOptionPane.showMessageDialog(null, "Putting file " + file + " to DHT completed.");
 				}
 				else if (response == 1) {
 					JOptionPane.showMessageDialog(null, "Putting file failed.");
+				}
+				else if (response == 3) {
+					JOptionPane.showMessageDialog(null, "Filename already exists");
 				}
 				else {
 					JOptionPane.showMessageDialog(null, "IOExceptation while putting file.");
@@ -90,7 +93,7 @@ public class GUI extends JFrame {
 						JOptionPane.PLAIN_MESSAGE,
 						null,
 						null,
-						null);
+						null); 
 				
 				JFileChooser c = new JFileChooser();
 				int rVal = c.showSaveDialog(GUI.this);
@@ -98,17 +101,17 @@ public class GUI extends JFrame {
 					filename.setText(c.getSelectedFile().getName());
 	    		
 					file = c.getSelectedFile().getName();
-					System.out.print("Name of the file: " + file + "\n");
+					Log.info(TAG, "Name of the file: " + file);
 	    		
 					dir.setText(c.getCurrentDirectory().toString());
 	    		
 					path = c.getCurrentDirectory().toString();
-					System.out.print("Name of the directory: " + path);
+					Log.info(TAG, "Directory: " + path);
 					//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
 					int response = controller.getFile(searchName, path, file);
 					if (response == 0) {
 						controller.getDHTdir();
-						JOptionPane.showMessageDialog(null, "Putting file completed.");
+						JOptionPane.showMessageDialog(null, "Downloading file " + searchName + " completed.");
 					}
 					else if (response == 1) {
 						JOptionPane.showMessageDialog(null, "File not found in DHT.");
@@ -146,7 +149,7 @@ public class GUI extends JFrame {
 						null,
 						null,
 						null);
-		    		System.out.print(searchName);
+		    		Log.info(TAG, "File to be dumped: " + searchName);
 		    		int response = controller.dumpFile(searchName);
 					if (response == 0) {
 						controller.getDHTdir();
@@ -192,12 +195,19 @@ public class GUI extends JFrame {
 			textLabel3.setText("Host address");
 			textLabel4.setBounds(10,70,100,20);
 			textLabel4.setText("Host port");
-						
+			
 			JPanel connectPanel = new JPanel();
 			serverAddr.setBounds(110,10,100,20);
 			serverPort.setBounds(110,30,100,20);
 			hostAddr.setBounds(110,50,100,20);
 			hostPort.setBounds(110,70,100,20);
+			
+			//SETTING DEFAULT VALUES
+			serverAddr.setText("localhost");
+			serverPort.setText("1234");
+			hostAddr.setText("localhost");
+			hostPort.setText("2000");
+			
 			connectPanel.setLayout(new GridLayout(4,1));
 			connectPanel.add(textLabel1);
 			connectPanel.add(serverAddr);
@@ -222,7 +232,7 @@ public class GUI extends JFrame {
 					directory(controller.getDHTdir());
 	
 				} catch (Exception ex) {
-					JOptionPane.showMessageDialog(null, "Connection to server failed. Be sure your ports are integers.");
+					JOptionPane.showMessageDialog(null, "Connection to server failed. Be sure your ports and addresses are correct.");
 				}
 				}
 			};
@@ -307,6 +317,8 @@ public class GUI extends JFrame {
 			this.progressBar = new JProgressBar(this.init, this.maxValue);
 			this.progressBar.setSize(150, 40);
 			this.progressBar.setAlignmentX(0f);
+			this.progressBar.setValue(this.init);
+			this.progressBar.setStringPainted(true);
 			this.progFrame.add(this.progPanel);
 			this.progPanel.add(this.progressBar);
 			this.progPanel.add(this.textLabel);
@@ -322,13 +334,13 @@ public class GUI extends JFrame {
 		
 		public void update(int progress) {
 			this.progressBar.setValue(progress);
+			this.progressBar.setStringPainted(true);
 			if (progress < this.maxValue) {
 				this.progFrame.setVisible(true);
 			}
 			else {
 				this.progFrame.setVisible(false);
-				JOptionPane.showMessageDialog(null, status + " completed.");
-				
+
 			}
 		}
 	}
