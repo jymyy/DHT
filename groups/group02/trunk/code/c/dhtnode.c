@@ -553,8 +553,9 @@ int main(int argc, char **argv) {
             }
 
             // Inform GUI about number of blocks still maintained
+            uint16_t blocks_no_htons = htons(blocks_no);
             sendcmd(cmdsock, sendbuf, host_key,
-                    CMD_BLOCKS_MAINTAINED, (byte *)&blocks_no, sizeof(int));
+                    CMD_BLOCKS_MAINTAINED, (byte *)&blocks_no_htons, sizeof(int));
             LOG_DEBUG(TAG_NODE, "Blocks maintained %d", blocks_no);
         }
     }
