@@ -99,10 +99,10 @@ int main(int argc, char **argv) {
     fd_set rfds;
     fd_set wfds;
     int listensock = create_listen_socket(host_port);
-    int cmdsock = -1;               // GUI (set to -1) or stdin (set to 0)
-    int servsock = -1;              // Server
-    int leftsock = -1;              // Other node
-    int rightsock = -1;             // Other node
+    int cmdsock = -1;       // GUI
+    int servsock = -1;      // Server
+    int leftsock = -1;      // Other node
+    int rightsock = -1;     // Other node
 
     // Data buffers
     byte *sendbuf = malloc(MAX_PACKET_SIZE);
@@ -158,58 +158,49 @@ int main(int argc, char **argv) {
         if (status == -1) {
             LOG_ERROR(TAG_NODE, "Select failed");
         } else if (FD_ISSET(cmdsock, &rfds)) {
-            if (CMD_USE_STDIN) {
-                read(cmdsock, recvbuf, MAX_PACKET_SIZE);
-                if (recvbuf[0] == 'q') {
-                    LOG_INFO(TAG_NODE, "Requesting permission to leave");
-                    sendpacket(servsock, sendbuf, host_key, host_key,
-                               DHT_DEREGISTER_BEGIN, NULL, 0);
-                }
+            struct cmd *cmd = recvcmd(cmdsock, recvbuf, MAX_PACKET_SIZE);
+            if (cmd == NULL) {
+                close(cmdsock);
+                cmdsock = -1;
+                LOG_WARN(TAG_NODE, "GUI disconnected");
             } else {
-                status = recvcmd(cmdsock, recvbuf, MAX_PACKET_SIZE);
-                if (status == 0) {
-                    close(cmdsock);
-                    cmdsock = -1;
-                } else {
-                    struct cmd *cmd = unpack_cmd(recvbuf);
-                    switch (cmd->type) {
-                        case CMD_PUT_DATA:
-                            // Add data
-                            sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                       DHT_PUT_DATA, cmd->payload, cmd->pl_len);
-                            break;
-                        case CMD_GET_DATA:
-                            // Request data
-                            sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                   DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
-                            break;
-                        case CMD_DUMP_DATA:
-                            // Delete data
-                            sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                   DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
-                            break;
-                        case CMD_TERMINATE:
-                            // Ask permission to leave
-                            LOG_INFO(TAG_NODE, "Requesting permission to leave");
-                            sendpacket(servsock, sendbuf, host_key, host_key,
-                                       DHT_DEREGISTER_BEGIN, NULL, 0);
-                            break;
-                        case CMD_ACQUIRE_REQUEST:
-                            // Request lock
-                            sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                       DHT_ACQUIRE_REQUEST, NULL, 0);
-                            break;
-                        case CMD_RELEASE_REQUEST:
-                            // Release lock
-                            sendpacket(servsock, sendbuf, cmd->key, host_key,
-                                       DHT_RELEASE_REQUEST, NULL, 0);
-                            break;
-                        default:
-                            LOG_WARN(TAG_NODE, "Invalid command type %d", cmd->type);
-                    }
-                    free(cmd->payload);
-                    free(cmd);
+                switch (cmd->type) {
+                    case CMD_PUT_DATA:
+                        // Add data
+                        sendpacket(servsock, sendbuf, cmd->key, host_key,
+                                   DHT_PUT_DATA, cmd->payload, cmd->pl_len);
+                        break;
+                    case CMD_GET_DATA:
+                        // Request data
+                        sendpacket(servsock, sendbuf, cmd->key, host_key,
+                               DHT_GET_DATA, host_addr_pl, host_addr_pl_len);
+                        break;
+                    case CMD_DUMP_DATA:
+                        // Delete data
+                        sendpacket(servsock, sendbuf, cmd->key, host_key,
+                               DHT_DUMP_DATA, cmd->payload, cmd->pl_len);
+                        break;
+                    case CMD_TERMINATE:
+                        // Ask permission to leave
+                        LOG_INFO(TAG_NODE, "Requesting permission to leave");
+                        sendpacket(servsock, sendbuf, host_key, host_key,
+                                   DHT_DEREGISTER_BEGIN, NULL, 0);
+                        break;
+                    case CMD_ACQUIRE_REQUEST:
+                        // Request lock
+                        sendpacket(servsock, sendbuf, cmd->key, host_key,
+                                   DHT_ACQUIRE_REQUEST, NULL, 0);
+                        break;
+                    case CMD_RELEASE_REQUEST:
+                        // Release lock
+                        sendpacket(servsock, sendbuf, cmd->key, host_key,
+                                   DHT_RELEASE_REQUEST, NULL, 0);
+                        break;
+                    default:
+                        LOG_WARN(TAG_NODE, "Invalid command type %d", cmd->type);
                 }
+                free(cmd->payload);
+                free(cmd);
             }
             
         } else if (FD_ISSET(leftsock, &rfds) || FD_ISSET(rightsock, &rfds)) {
@@ -220,12 +211,12 @@ int main(int argc, char **argv) {
                 tempsock = &rightsock;
             }
 
-            status = recvpacket(*tempsock, recvbuf, MAX_PACKET_SIZE);
-            if (status == 0) {
+            struct packet *packet = recvpacket(*tempsock, recvbuf, MAX_PACKET_SIZE);
+            if (packet == NULL) {
                 close(*tempsock);
                 *tempsock = -1;
+                LOG_WARN(TAG_NODE, "Other node disconnected");
             } else {
-                struct packet *packet = unpack(recvbuf);
                 switch (packet->type) {
                     case DHT_TRANSFER_DATA:
                         // Store data received from neighbour
@@ -273,11 +264,11 @@ int main(int argc, char **argv) {
 
         } else if (FD_ISSET(servsock, &rfds)) {
             int tempsock;
-            status = recvpacket(servsock, recvbuf, MAX_PACKET_SIZE);
-            if (status == 0) {
+            struct packet *packet = recvpacket(servsock, recvbuf, MAX_PACKET_SIZE);
+            if (packet == NULL) {
+                close(servsock);
                 DIE(TAG_NODE, "Server disconnected");
             } else {
-                struct packet *packet = unpack(recvbuf);
                 struct tcp_addr temp_addr;
                 switch (packet->type) {
                     case DHT_REGISTER_FAKE_ACK:
@@ -504,8 +495,7 @@ int main(int argc, char **argv) {
         if (status == -1) {
             LOG_ERROR(TAG_NODE, "Select failed");
         } else if (FD_ISSET(servsock, &rfds)) {
-            recvpacket(servsock, recvbuf, MAX_PACKET_SIZE);
-            struct packet *packet = unpack(recvbuf);
+            struct packet *packet = recvpacket(servsock, recvbuf, MAX_PACKET_SIZE);
             if (packet->type == DHT_DEREGISTER_DONE) {
                     // Simply leave after receiving confirmations from
                     // both neighbours

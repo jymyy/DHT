@@ -10,57 +10,11 @@
 #include <netdb.h>
 
 #include "typedefs.h"
-#include "dhtpacket.h"
-#include "cmdpacket.h"
+#include "dhtpackettypes.h"
+#include "cmdtypes.h"
 #include "log.h"
 
 #define TAG_SOCKET "Socket IO"
-
-#ifndef CMD_USE_STDIN
-#define CMD_USE_STDIN 1
-#endif
-
-#define sendpacket(socket, buf, target, sender, type, payload, pl_len)  \
-    do {                                                                \
-        int packetlen = pack(buf, target, sender,                       \
-            type, payload, pl_len);                                     \
-        _sendpacket(socket, buf, packetlen);                            \
-    } while (0)
-
-#if !CMD_USE_STDIN
-#define sendcmd(socket, buf, key, type, payload, pl_len)    \
-    do {                                                    \
-        if (socket != -1) {                                 \
-            int packetlen = pack_cmd(buf, key,              \
-            type, payload, pl_len);                         \
-        _sendcmd(socket, buf, packetlen);                   \
-        }                                                   \
-    } while (0)
-#else
-#define sendcmd(socket, buf, key, type, payload, pl_len)
-#endif
-
-/*
- * Send data until all data is sent and return length of sent data
- */
-int _sendpacket(int socket, byte *sendbuf, int packetlen);
-
-/*
- * Receive data until a complete packet is received and return length of received packet.
- * Return zero if sender has disconnected.
- */
-int recvpacket(int socket, byte *recvbuf, int bufsize);
-
-/*
- * Send command to GUI.
- */
-int _sendcmd(int socket, byte *sendbuf, int cmdlen);
-
-/*
- * Receive command from GUI and return length of received command.
- * Return zero if GUI has disconnected.
- */
-int recvcmd(int socket, byte *recvbuf, int bufsize);
 
 /*
  * Send handshake and wait for response.

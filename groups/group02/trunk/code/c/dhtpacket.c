@@ -1,6 +1,72 @@
 #include "dhtpacket.h"
 
-int pack(byte *buf, sha1_t target_key, sha1_t sender_key,
+int sendpacket(int socket, byte *buf, sha1_t target, sha1_t sender,
+               uint16_t type, byte *payload, uint16_t pl_len) {
+    int packetlen = pack_p(buf, target, sender,
+                    type, payload, pl_len);
+    return send_p(socket, buf, packetlen);
+}
+
+struct packet* recvpacket(int socket, byte *buf, int bufsize) {
+    int status = recv_p(socket, buf, bufsize);
+    if (status == 0) {
+        return NULL;
+    } else {
+        return unpack_p(buf);
+    }
+}
+
+int send_p(int socket, byte *sendbuf, int packetlen) {
+    LOG_DEBUG(TAG_PACKET, "Sending to %d", socket);
+    int bytes_sent = 0;
+    while (bytes_sent < packetlen) {
+        bytes_sent += send(socket, sendbuf+bytes_sent, packetlen-bytes_sent, 0);
+    }
+    LOG_DEBUG(TAG_PACKET, "Sent %d bytes", bytes_sent);
+    return bytes_sent;      
+}
+
+int recv_p(int socket, byte *recvbuf, int bufsize) {
+    LOG_DEBUG(TAG_PACKET, "Receiving from %d", socket);
+    int bytes_total = 0;
+    int bytes_received = 0;
+    int bytes_missing = PACKET_HEADER_LEN;
+    uint16_t pl_len = 0;
+
+    // Receive header
+    while (bytes_missing > 0) {
+        bytes_received = recv(socket, recvbuf+bytes_total, bytes_missing, 0);
+        if (bytes_received == 0) {
+            return 0;
+        } else if (bytes_total > bufsize) {
+            DIE(TAG_PACKET, "Recvbuf overflow");
+        }
+        bytes_total += bytes_received;
+        bytes_missing -= bytes_received;
+    }
+
+    // Check length of the packet and receive more data if needed
+    memcpy(&pl_len, recvbuf+PL_LEN_OFFSET, sizeof(uint16_t));
+    pl_len = ntohs(pl_len);
+    bytes_received = 0;
+    bytes_missing = pl_len;
+    while (bytes_missing > 0) {
+        bytes_received = recv(socket, recvbuf+bytes_total, bytes_missing, 0);
+        if (bytes_received == 0) {
+            LOG_WARN(TAG_PACKET, "Sender disconnected");
+            return 0;
+        } else if (bytes_total > bufsize) {
+            DIE(TAG_PACKET, "Recvbuf overflow");
+        }
+        bytes_total += bytes_received;
+        bytes_missing -= bytes_received;
+    }
+    
+    LOG_DEBUG(TAG_PACKET, "Received %d bytes", bytes_total);
+    return bytes_total;
+}
+
+int pack_p(byte *buf, sha1_t target_key, sha1_t sender_key,
          uint16_t type, byte *payload, uint16_t pl_len) {
 
     uint16_t type_htons = htons(type);
@@ -27,7 +93,7 @@ int pack(byte *buf, sha1_t target_key, sha1_t sender_key,
     return PACKET_HEADER_LEN + pl_len;
 }
 
-struct packet* unpack(byte *buf) {
+struct packet* unpack_p(byte *buf) {
     // There is a bug/undocumented behaviour in the server.
     // Sometimes when the server sends a packet (usually if it is a
     // DHT_REGISTER_FAKE_ACK) it starts with a single ? character, otherwise

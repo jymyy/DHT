@@ -16,9 +16,6 @@
 
 // Options
 #define SHA1_DEBUG_LEN 8        // Length of printed SHA1 strings
-#define CMD_USE_STDIN 0         // Read commands from stdin
-
-
 
 // Type of buffer arrays
 typedef uint8_t byte;
