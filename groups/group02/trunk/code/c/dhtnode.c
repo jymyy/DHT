@@ -1,6 +1,6 @@
 #include "dhtnode.h"
 
-int loglevel = DEBUG_LEVEL; // This sets default log level
+int loglevel = INFO_LEVEL; // This sets default log level
 
 /**
  * Option:              Short:  Long:           Default:
@@ -9,7 +9,7 @@ int loglevel = DEBUG_LEVEL; // This sets default log level
  * Server address       -a      --servaddr      localhost
  * Server port          -p      --servport      1234
  * Block directory      -b      --blockdir      ./blocks/
- * Logging level        -l      --loglevel      4 (debug)
+ * Logging level        -l      --loglevel      3 (info)
  */
 int main(int argc, char **argv) {
     char *host_address = NULL;
@@ -152,7 +152,6 @@ int main(int argc, char **argv) {
         memset(recvbuf, 0, MAX_PACKET_SIZE);
         memset(blockbuf, 0, MAX_BLOCK_SIZE);
 
-        // Value for numfds is currently arbitrary
         status = select(10, &rfds, NULL, NULL, NULL);
 
         if (status == -1) {
@@ -235,7 +234,7 @@ int main(int argc, char **argv) {
                                 CMD_GET_NO_DATA_ACK, NULL, 0);
                         break;
                     case DHT_REGISTER_ACK:
-                        // Received all data from neighbour. Send DONE to server if
+                        // Received all data from neighbour. Send DHT_REGISTER_DONE to server if
                         // ACKs received from both neighbours.
                         regs_rcvd++;
                         if (regs_rcvd == 2) {
@@ -285,18 +284,20 @@ int main(int argc, char **argv) {
                         open_conn(&tempsock, &temp_addr);
                         init_hs(tempsock);
                         
-                        // Hash neighbour address
+                        // Calculate midpoints between us and the new node
                         sha1_t nb_key;
                         hash_addr(&temp_addr, nb_key);
                         sha1_t mid_clock;
                         sha1_t mid_counter;
                         calc_mid(host_key, nb_key, mid_clock, 1);
                         calc_mid(host_key, nb_key, mid_counter, -1);
+
+                        // Slice ring between midpoints and send data in slice
                         struct keyring *slice = slice_ring(ring, mid_clock, mid_counter);
                         struct keyring *slice_n = slice;
                         while (slice_n != NULL) {
                             int blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
-                            if (blocklen > 0) {
+                            if (blocklen == -1) {
                                 sendpacket(tempsock, sendbuf, slice_n->key, host_key,
                                            DHT_TRANSFER_DATA, blockbuf, blocklen);
                             }
@@ -312,8 +313,7 @@ int main(int argc, char **argv) {
                         close(tempsock);
                         break;
                     case DHT_REGISTER_DONE:
-                        // TODO: Forget data sent to new neighbour (currently blocks are actually
-                        // dumped immediately after they are sent).
+                        // Nothing to do, data has already been deleted in DHT_DEREGISTER_BEGIN
                         break;
                     case DHT_DEREGISTER_BEGIN:
                         // Other node leaves abnormally
@@ -346,7 +346,8 @@ int main(int argc, char **argv) {
                         LOG_WARN(TAG_NODE, "Request to leave denied");
                         break;
                     case DHT_GET_DATA:
-                        // Other node requested data
+                        // Some node requested data. Check if the request came from self. If not
+                        // open a new connection and send data. Otherwise send data directly to GUI.
                         ; int isnotself = hashcmp(host_key, packet->sender);
 
                         if (isnotself) {
@@ -355,33 +356,41 @@ int main(int argc, char **argv) {
                             init_hs(tempsock);
                         }
 
-                        // Check if we have requested data
                         if (has_key(ring, packet->target)) {
                             int blocklen = read_block(blockdir, packet->target,
                                                       blockbuf, MAX_BLOCK_SIZE);
-                            if (blocklen > 0) {
+                            if (blocklen == -1) {
+                                // Block couldn't be read, response with NO_DATA
                                 if (isnotself) {
                                     sendpacket(tempsock, sendbuf, packet->target, host_key,
-                                           DHT_SEND_DATA, blockbuf, blocklen);
+                                               DHT_NO_DATA, NULL, 0);
+                                    close(tempsock);
+                                } else {
+                                    sendcmd(cmdsock, sendbuf, packet->target,
+                                            CMD_GET_NO_DATA_ACK, NULL, 0);
+                                }
+                                del_key(ring, packet->target);
+                            } else {
+                                
+                                if (isnotself) {
+                                    sendpacket(tempsock, sendbuf, packet->target, host_key,
+                                               DHT_SEND_DATA, blockbuf, blocklen);
                                     close(tempsock);
                                 } else {
                                     sendcmd(cmdsock, sendbuf, packet->target,
                                             CMD_GET_DATA_ACK, blockbuf, blocklen);
                                 }
-                            } else {
-                                LOG_ERROR(TAG_NODE ,"Error reading block");
                             }
 
                         } else {
                             if (isnotself) {
                                 sendpacket(tempsock, sendbuf, packet->target, host_key,
-                                       DHT_NO_DATA, NULL, 0);
+                                           DHT_NO_DATA, NULL, 0);
                                 close(tempsock);
                             } else {
                                 sendcmd(cmdsock, sendbuf, packet->target,
                                         CMD_GET_NO_DATA_ACK, NULL, 0);
                             }
-                            
                         }
         
                         break;
@@ -430,7 +439,7 @@ int main(int argc, char **argv) {
             }
 
         } else if (FD_ISSET(listensock, &rfds)) {
-            // Other node tries to connect
+            // Other node or GUI tries to connect
             struct sockaddr_in tempaddr;
             int tempsock;
             unsigned int addrlen = sizeof(struct sockaddr_storage);
@@ -497,8 +506,7 @@ int main(int argc, char **argv) {
         } else if (FD_ISSET(servsock, &rfds)) {
             struct packet *packet = recvpacket(servsock, recvbuf, MAX_PACKET_SIZE);
             if (packet->type == DHT_DEREGISTER_DONE) {
-                    // Simply leave after receiving confirmations from
-                    // both neighbours
+                    // Simply leave after receiving confirmations from both neighbours
                     deregs_rcvd++;
                     if (deregs_rcvd == 2) {
                         sendcmd(cmdsock, sendbuf, packet->target,
@@ -525,6 +533,7 @@ int main(int argc, char **argv) {
                 LOG_WARN(TAG_NODE, "Invalid socket selected");
             }
 
+            // Send data to neighbour or DHT_DEREGISTER_ACK if all data has been sent
             if (*slice_n != NULL) {
                 int blocklen = read_block(blockdir, (*slice_n)->key, blockbuf, MAX_BLOCK_SIZE);
                 if (blocklen > 0) {

@@ -22,7 +22,7 @@ int write_block(char *dir, sha1_t key, byte *buf, int blocklen) {
     if ((status = create_dir(dir)) == 0) {
         FILE *file = fopen(fullpath, "wb");
         if (file == NULL) {
-            LOG_ERROR(TAG_FILE, "Failed to open file");
+            LOG_ERROR(TAG_FILE, "%s", strerror(errno));
             return -1;
         } else {
             int bytes_written = fwrite(buf, sizeof(byte), blocklen, file);
@@ -44,7 +44,7 @@ int read_block(char *dir, sha1_t key, byte *buf, int buflen) {
     if ((status = create_dir(dir)) == 0) {
         FILE *file = fopen(fullpath, "rb");
         if (file == NULL) {
-            LOG_ERROR(TAG_FILE, "Failed to open file");
+            LOG_ERROR(TAG_FILE, "%s", strerror(errno));
             return -1;
         } else {
             int bytes_read = fread(buf, sizeof(byte), buflen, file);

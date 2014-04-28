@@ -94,25 +94,16 @@ int pack_p(byte *buf, sha1_t target_key, sha1_t sender_key,
 }
 
 struct packet* unpack_p(byte *buf) {
-    // There is a bug/undocumented behaviour in the server.
-    // Sometimes when the server sends a packet (usually if it is a
-    // DHT_REGISTER_FAKE_ACK) it starts with a single ? character, otherwise
-    // the packet seems to be valid. Therefore reading has to be sometimes
-    // offset by one. This same behaviour must be handled in recvall too.
     struct packet *packet = malloc(sizeof(struct packet));
-    int offset = 0;
-    //if (buf[0] == '?') {
-    //    offset = 1;
-    //}
-    memcpy(packet->target, buf+TARGET_OFFSET+offset, sizeof(sha1_t));
-    memcpy(packet->sender, buf+SENDER_OFFSET+offset, sizeof(sha1_t));
-    memcpy(&(packet->type), buf+TYPE_OFFSET+offset, sizeof(uint16_t));
-    memcpy(&(packet->pl_len), buf+PL_LEN_OFFSET+offset, sizeof(uint16_t));
+    memcpy(packet->target, buf+TARGET_OFFSET, sizeof(sha1_t));
+    memcpy(packet->sender, buf+SENDER_OFFSET, sizeof(sha1_t));
+    memcpy(&(packet->type), buf+TYPE_OFFSET, sizeof(uint16_t));
+    memcpy(&(packet->pl_len), buf+PL_LEN_OFFSET, sizeof(uint16_t));
     packet->type = ntohs(packet->type);
     packet->pl_len = ntohs(packet->pl_len);
     if (packet->pl_len > 0) {
     	packet->payload = malloc(packet->pl_len);
-        memcpy(packet->payload, buf+PAYLOAD_OFFSET+offset, packet->pl_len);
+        memcpy(packet->payload, buf+PAYLOAD_OFFSET, packet->pl_len);
     } else {
         packet->payload = NULL;
     }

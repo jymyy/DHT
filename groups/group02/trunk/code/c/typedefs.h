@@ -14,7 +14,6 @@
 #define MAX_CMD_SIZE 65549      // MAX_BLOCK_SIZE + CMD_HEADER_LEN
 #define MAX_BLOCK_SIZE 65535
 
-// Options
 #define SHA1_DEBUG_LEN 8        // Length of printed SHA1 strings
 
 // Type of buffer arrays

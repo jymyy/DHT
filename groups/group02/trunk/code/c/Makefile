@@ -2,39 +2,25 @@ CFLAGS=-c -g -Wall -std=c99 -D_POSIX_SOURCE -pedantic
 LDFLAGS=-lssl -lcrypto
 CC = gcc
 LD = gcc
-PROG = dhtnode
-OBJS = dhtnode.o dhtpacket.o hash.o socketio.o \
-		fileio.o keyring.o cmdpacket.o
+OUTDIR = build
+PROG = $(OUTDIR)/dhtnode
+OBJS = dhtnode.o dhtpacket.o hash.o socketio.o fileio.o keyring.o cmdpacket.o
+OUTOBJS = $(addprefix $(OUTDIR)/,$(OBJS))
 
-
-.c.o:
-	$(CC) $< -o $@ $(CFLAGS)
 
 all: $(PROG)
 
-$(PROG): $(OBJS)
-	$(LD) $(OBJS) -o $(PROG) $(LDFLAGS)
+$(PROG): $(OUTOBJS)
+	$(LD) $(OUTOBJS) -o $(PROG) $(LDFLAGS)
 
-dhtnode.o: dhtnode.c
-	$(CC) $(CFLAGS) dhtnode.c 
+$(OUTDIR)/%.o: %.c | mkdir
+	$(CC) -c $(CFLAGS) $< -o $@
 
-dhtpacket.o: dhtpacket.c
-	$(CC) $(CFLAGS) dhtpacket.c
+run: $(PROG)
+	$(PROG)
 
-hash.o: hash.c 
-	$(CC) $(CFLAGS) hash.c
-
-socketio.o: socketio.c
-	$(CC) $(CFLAGS) socketio.c
-
-fileio.o: fileio.c
-	$(CC) $(CFLAGS) fileio.c
-
-keyring.o: keyring.c
-	$(CC) $(CFLAGS) keyring.c
-
-cmdpacket.o: cmdpacket.c
-	$(CC) $(CFLAGS) cmdpacket.c
+mkdir:
+	/bin/mkdir -p $(OUTDIR)
 
 clean:
-	/bin/rm -f *.o dhtnode
+	/bin/rm -f $(OUTDIR)/*.o $(OUTDIR)/dhtnode

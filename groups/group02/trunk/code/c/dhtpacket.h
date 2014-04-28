@@ -26,6 +26,15 @@
 
 /**
  * Pack data and send to socket. Return number of sent bytes.
+ *
+ * socket:  Where to send
+ * buf:     Buffer used in packing and sending, should have length of
+ *          at least PACKET_HEADER_LEN+pl_len  
+ * target:  Ṕacket target key
+ * sender:  Packet sender key
+ * type:    Packet type
+ * payload: Packet payload
+ * pl_len:  Payload length
  */
 int sendpacket(int socket, byte *buf, sha1_t target, sha1_t sender,
                uint16_t type, byte *payload, uint16_t pl_len);

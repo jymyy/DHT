@@ -6,7 +6,7 @@ int calc_mid(sha1_t a, sha1_t b, sha1_t mid, int dir) {
     int carry = 0;
 
     // First, calculate the midpoint for the sector that doesn't
-    // contain the gap. Midpoint can be found by calculating average
+    // have the gap. Midpoint can be found by calculating average
     // of bits in same position.
     for (int i = 0; i < SHA1_KEY_LEN; i++) {
         val = (int) a[i] + (int) b[i] + 256*carry;
@@ -51,7 +51,8 @@ int add_key(struct keyring *ring, sha1_t key) {
         new->previous = pos;
         new->next = pos->next;
 
-        if (pos == pos->next) { // If there is only host key
+        if (pos == pos->next) {
+            // If there is only host key
             pos->previous = new;
             pos->next = new;
         } else {

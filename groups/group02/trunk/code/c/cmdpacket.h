@@ -23,6 +23,14 @@
 
 /**
  * Pack and send command to socket. Return number of sent bytes.
+ *
+ * socket:  Where to send
+ * buf:     Buffer used in packing and sending, should have length of
+ *          at least CMD_HEADER_LEN+pl_len  
+ * key:     Command key
+ * type:    Command type
+ * payload: Payload for the command
+ * pl_len:  Payload length
  */
 int sendcmd(int socket, byte *buf, sha1_t key, uint16_t type,
             byte *payload, uint16_t pl_len);
