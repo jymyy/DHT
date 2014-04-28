@@ -41,6 +41,7 @@ public class DHTController {
 	private String progBarStatus;
 	private int progBarValue;
 	private int progBarMax;
+	private GUI.Progressbar progressBar;
 	
 	private LinkedList<String> dhtDir;
 	private byte[] dirKey;
@@ -500,7 +501,7 @@ public class DHTController {
 			progBarStatus = newProgBarStatus;
 			progBarValue = progValue;
 			progBarMax = maxValue;
-			gui.progress(progValue, maxValue, progBarStatus);
+			this.progressBar = gui.new Progressbar(progValue, maxValue, progBarStatus);
 		}
 		
 	}
@@ -513,7 +514,7 @@ public class DHTController {
 			progBarMax = 0;
 		}
 		else {
-			gui.progress(progBarValue, progBarMax, progBarStatus);
+			this.progressBar.update(progBarValue);
 		}
 	}
 	
