@@ -24,8 +24,8 @@ public class GUI extends JFrame {
 	JPanel panel;
     JScrollPane directory;
     JLabel dirText;
-    
-    static public GUI gui;
+    JList DHTdir;
+ 
 	
 	// Choosing a file to be put into DHT
     
@@ -246,7 +246,7 @@ public class GUI extends JFrame {
     		if (connected == 1) {
     		int terminate = controller.terminate();
     		if (terminate == 0) {
-    			System.exit(0);
+    			JOptionPane.showMessageDialog(null, "Disconnected.");
     		}
     		else if (terminate == 1)
     		{
@@ -295,10 +295,24 @@ public class GUI extends JFrame {
 	
 	
 	public void directory(String[] list) {
-        JList dir = new JList(list);
-        directory.getViewport().add(dir);
+		DHTdir = new JList(list);
+        directory.getViewport().add(DHTdir);
 	    panel.add(directory);
 	    panel.add(dirText);
+	    MouseListener mouseListener = new MouseAdapter() {
+	    	public void mouseClicked(MouseEvent mouseEvent) {
+	    		JList theList = (JList) mouseEvent.getSource();
+	    		if (mouseEvent.getClickCount() == 2) {
+	    			int index = theList.locationToIndex(mouseEvent.getPoint());
+	    			if (index >= 0) {
+	    				Object o = theList.getModel().getElementAt(index);
+	    				System.out.println("Double-clicked on " + o.toString());
+	    			}
+	    		}
+	    	}
+	    };
+	
+	    DHTdir.addMouseListener(mouseListener);
 
 	}
 	
@@ -315,7 +329,6 @@ public class GUI extends JFrame {
 	
 	public GUI() {
 		
-		gui = this;
 		  
 		// Setting up main window
 		setTitle("DHT GUI");
@@ -397,6 +410,8 @@ public class GUI extends JFrame {
         directory.setBounds(50, 100, 400, 300);
 	    panel.add(directory);
 	    panel.add(dirText);
+	    
+
 	    
 	    // Setting log window
 		logText = new JLabel();
