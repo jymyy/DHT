@@ -92,9 +92,7 @@ public class DHTController {
 				totalBlocks++;
 			}
 			// Init progress bar
-			startProgress(1, totalBlocks*2 +1 , "Uploading file " + dhtFileName);
-			
-			
+			startProgress(1, totalBlocks*2 +1 +5 , "Uploading file " + dhtFileName);
 
 			InputStream fis = new FileInputStream(file);
 			byte[] nextPayloadBuf;
@@ -122,6 +120,9 @@ public class DHTController {
 			e.printStackTrace();
 			return 2;
 		}
+		getDir();
+		dhtDir.add(dhtFileName);
+		putDir();
 		// Everything worked
 		return 0;
 	}
@@ -161,7 +162,8 @@ public class DHTController {
 			ByteBuffer bb = ByteBuffer.wrap(bTotalBlocks);
 			int totalBlocks = (int) bb.getShort(); 
 			// Start progress bar for downloading
-			startProgress(2, totalBlocks*3 + 2, "Downloading " + dhtFileName);
+			startProgress(2, totalBlocks*3 +2 +3, "Downloading " + dhtFileName);
+			
 			int blockNo = 1;
 			while (blockNo < totalBlocks) {
 				blockNo++;
@@ -177,6 +179,7 @@ public class DHTController {
 				addProgress();
 			} 
 			fos.close();
+			getDir();
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -208,7 +211,8 @@ public class DHTController {
 		ByteBuffer bb = ByteBuffer.wrap(bTotalBlocks);
 		int totalBlocks = (int) bb.getShort(); 
 		// Start progress bar for downloading
-		startProgress(2, totalBlocks*3 + 2, "Dumping " + fileName);
+		startProgress(2, totalBlocks*3 +2 +2, "Dumping " + fileName);
+		
 		// Go through all blocks of the file
 		int blockNo = 1;
 		do {
@@ -217,7 +221,9 @@ public class DHTController {
 			addProgress(); // Notify that the operation has progressed
 			blockNo++;
 		} while (blockNo <= totalBlocks);
-		
+		getDir();
+		dhtDir.remove(fileName);
+		putDir();
 		return 0;
 	}
 	
@@ -236,7 +242,6 @@ public class DHTController {
 		this.nodeIO.sendCommand(DataBlock.getCommand(CMD_TERMINATE, null));
 		Log.debug(TAG, "Terminate command send, waiting for node's response");
 		addProgress();
-		
 		
 		
 		byte[] nodeResponse = this.nodeIO.readCommand();
@@ -304,7 +309,7 @@ public class DHTController {
 			else { // The directory block has been lost or corrupted
 				Log.error(TAG, "The DHT directory has either been lost or corrupted.");
 			}
-			Log.debug(TAG, "No DHT directory found -> start new one.");
+			Log.info(TAG, "No DHT directory found -> start new one.");
 			if (putDir() == 0 ) {
 				Log.info(TAG, "Added a directory block to the DHT!");
 				return 0;
@@ -355,7 +360,8 @@ public class DHTController {
 	
 	
 	/**
-	 * Replaces the DHT directory with the local copy of the directory 
+	 * Replaces the DHT directory with the local copy of the directory.
+	 * Each call increments progress bar twice.
 	 * @return
 	 * 	0 if successful
 	 * -1 if fails
@@ -394,26 +400,6 @@ public class DHTController {
 			return -1;
 		}
 	}
-	
-	
-	/**
-	 * 
-	 * @return
-	 */
-	private int dirAdd(String newFile) { // TODO Add progress bar and error handling
-		getDir();
-		dhtDir.add(newFile);
-		putDir();
-		return 0;
-	}
-	
-	private int dirDelete(String removableFile) { // TODO Add progress bar and error handling
-		getDir();
-		dhtDir.remove(removableFile);
-		putDir();
-		return 0;
-	}
-	
 	
 	
 	/**
@@ -541,13 +527,6 @@ public class DHTController {
 			progBarMax = 0;
 		}
 		else {
-			
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 			this.progressBar.update(progBarValue);
 		}
 	}
