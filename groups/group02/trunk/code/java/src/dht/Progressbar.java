@@ -8,6 +8,18 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 
 // Progress bar
+package dht;
+
+import java.awt.Rectangle;
+
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+
+// Progress bar
 
 public class Progressbar {
 	JProgressBar progressBar;
@@ -50,17 +62,17 @@ public class Progressbar {
 	
 	public void update(int progress) {
 		this.progressBar.setValue(progress);
-		this.progressBar.setStringPainted(true);
-		if (progress < this.maxValue) {
-			this.progFrame.setVisible(true);
-		}
-		else {
+		Rectangle progressRect = this.progressBar.getBounds();
+		progressRect.x = 0;
+		progressRect.y = 0;
+		this.progressBar.paintImmediately( progressRect );
+		this.textLabel.paintImmediately( progressRect );
+		if (progress >= this.maxValue) {
 			this.progFrame.setVisible(false);
-
 		}
 	}
 	
-	public void fail() {
+	public void interrupt() {
 		this.progFrame.setVisible(false);
 	}
 }

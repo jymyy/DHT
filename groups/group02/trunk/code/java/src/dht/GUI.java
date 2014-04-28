@@ -57,7 +57,7 @@ public class GUI extends JFrame {
 	    		
 	    		int response = controller.putFile(path+"/"+file, searchName);
 				if (response == 0) {
-					controller.getDHTdir();
+					directory(controller.getDHTdir());
 					JOptionPane.showMessageDialog(null, "Putting file " + file + " to DHT completed.");
 				}
 				else if (response == 1) {
@@ -110,7 +110,7 @@ public class GUI extends JFrame {
 					//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
 					int response = controller.getFile(searchName, path, file);
 					if (response == 0) {
-						controller.getDHTdir();
+						directory(controller.getDHTdir());
 						JOptionPane.showMessageDialog(null, "Downloading file " + searchName + " completed.");
 					}
 					else if (response == 1) {
@@ -152,7 +152,7 @@ public class GUI extends JFrame {
 		    		Log.info(TAG, "File to be dumped: " + searchName);
 		    		int response = controller.dumpFile(searchName);
 					if (response == 0) {
-						controller.getDHTdir();
+						directory(controller.getDHTdir());
 						JOptionPane.showMessageDialog(null, "Dumping file completed.");
 					}
 					else if (response == 1) {
@@ -490,4 +490,6 @@ public class GUI extends JFrame {
 	}
 	
 }
+
+
 
