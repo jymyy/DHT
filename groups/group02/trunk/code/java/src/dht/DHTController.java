@@ -26,7 +26,6 @@ public class DHTController {
 	private final char CMD_ACQUIRE_ACK = 17;
 	private final char CMD_RELEASE_ACK = 18;
 
-	private final char CMD_REGISTER_DONE = 21;
 	private final char CMD_DEREGISTER_DONE = 22;
 	private final char CMD_BLOCKS_MAINTAINED = 23;
 	
@@ -38,12 +37,11 @@ public class DHTController {
 	String serverIP;
 	String serverPort;
 	NodeIO nodeIO;
-	GUI gui;
 	
 	private String progBarStatus;
 	private int progBarValue;
 	private int progBarMax;
-	private GUI.Progressbar progressBar;
+	private Progressbar progressBar;
 	
 	private LinkedList<String> dhtDir;
 	private byte[] dirKey;
@@ -54,7 +52,6 @@ public class DHTController {
 		this.hostPort = hostPort;
 		this.serverIP = serverIP;
 		this.serverPort = serverPort;
-		this.gui = GUI.gui;
 		
 		this.nodeIO = new NodeIO(this); 
 		Socket ns = nodeIO.connectNode();
@@ -65,6 +62,11 @@ public class DHTController {
 		// Get local copy of DHT directory
 		dhtDir = new LinkedList<String>();
 		dirKey = getSHA1("DHTDIR");
+		
+		
+		
+		
+		
 	}
 	
 	
@@ -235,7 +237,7 @@ public class DHTController {
 	 * -1 if terminating fails somehow
 	 */
 	public int terminate() {
-		// TODO Fix and add progress bar!!
+		// TODO fix progress bar!!
 		startProgress(0, 3, "Terminating connection");
 		
 		
@@ -248,19 +250,42 @@ public class DHTController {
 		addProgress();
 		int responseCode = extractResponseCode(nodeResponse);
 		
-		if (responseCode == this.CMD_TERMINATE_ACK) {
-			Log.debug(TAG, "Response: termination OK");
-			this.nodeIO.disconnect();
-			Log.info(TAG, "Node disconnected.");
-			addProgress();
-			return 0;
+		if (responseCode == CMD_TERMINATE_ACK) {
+			Log.debug(TAG, "Response: termination OK -> start termination sequence.");
+			
+			byte[] blocksLeftArr = new byte[2];
+			int blocksLeft;
+			ByteBuffer wrapped;
+			// Wait for termination sequence to finish
+			while (true) {
+				nodeResponse = nodeIO.readCommand();
+				responseCode = extractResponseCode(nodeResponse);
+				if (responseCode == CMD_BLOCKS_MAINTAINED) {
+					
+					System.arraycopy(nodeResponse, DataBlock.DATABLOCK_OFFSET, blocksLeftArr, 0, 2);
+					wrapped = ByteBuffer.wrap(blocksLeftArr);
+					blocksLeft = (int) wrapped.getChar();
+					Log.debug(TAG, Integer.toString(blocksLeft) + " blocks left.");
+				}
+				else if (responseCode == CMD_DEREGISTER_DONE) {
+					this.nodeIO.disconnect();
+					Log.info(TAG, "Node disconnected.");
+					addProgress();
+					return 0;
+				}
+				else {
+					Log.error(TAG, "Error when waiting for node to releash data.");
+					return -1;
+				}
+				
+				
+			}
 		}
 		else if (responseCode == this.CMD_TERMINATE_DENY) {
 			Log.info(TAG, "Termination denied.");
 			return 1;
 		}
 		else {
-			System.out.println("Termination failed");
 			Log.error(TAG, "Error when trying to terminate.");
 			return -1;
 		}
@@ -366,7 +391,7 @@ public class DHTController {
 	 * 	0 if successful
 	 * -1 if fails
 	 */
-	private int putDir() { // TODO Add progress bar
+	private int putDir() {
 		ByteBuffer b;
 		byte[] bytes;
 		byte[] newDirBuf = new byte[MAX_BLOCK_PL_SIZE];
@@ -510,12 +535,12 @@ public class DHTController {
 	}
 	
 	private void startProgress(int progValue, int maxValue, String newProgBarStatus) {
-		if (this.gui != null) {
-			progBarStatus = newProgBarStatus;
-			progBarValue = progValue;
-			progBarMax = maxValue;
-			this.progressBar = gui.new Progressbar(progValue, maxValue, progBarStatus);
-		}
+		// TODO interrupt()
+		progBarStatus = newProgBarStatus;
+		progBarValue = progValue;
+		progBarMax = maxValue;
+		this.progressBar = new Progressbar(progValue, maxValue, progBarStatus);
+
 		
 	}
 
@@ -530,6 +555,8 @@ public class DHTController {
 			this.progressBar.update(progBarValue);
 		}
 	}
+	
+	
 	
 
 	// Returns the responseCode extracted from DHTnode's response command

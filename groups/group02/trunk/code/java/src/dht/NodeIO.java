@@ -44,12 +44,13 @@ public class NodeIO {
 		} catch (Exception e) {
 			Log.error(TAG, "Failed to open connection to node");
 		}
-		
+		nodeSoc = nodeSocket;
 		return nodeSocket;
 	}
 	
 	//Terminates the connection
 	public void disconnect() {
+		
 		if (! this.nodeSoc.isClosed()) {
 			try {
 				this.nodeSoc.close();
