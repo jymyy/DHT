@@ -36,8 +36,6 @@ public class DHTController {
 
 	String hostIP;
 	String hostPort;
-	String serverIP;
-	String serverPort;
 	NodeIO nodeIO;
 	
 	private String progBarStatus;
@@ -49,11 +47,9 @@ public class DHTController {
 	private byte[] dirKey;
 	
 	
-	DHTController(String hostIP, String hostPort, String serverIP, String serverPort) throws Exception {
+	DHTController(String hostIP, String hostPort) throws Exception {
 		this.hostIP = hostIP;
 		this.hostPort = hostPort;
-		this.serverIP = serverIP;
-		this.serverPort = serverPort;
 		
 		this.nodeIO = new NodeIO(this);
 		if (!nodeIO.connectNode()) {

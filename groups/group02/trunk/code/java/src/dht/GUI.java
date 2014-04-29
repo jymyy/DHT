@@ -1,5 +1,8 @@
 package dht;
 import javax.swing.*;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
+
 import java.awt.event.*;
 import java.awt.Desktop;
 import java.awt.Dimension;
@@ -7,6 +10,8 @@ import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.*;
 
 public class GUI extends JFrame {
@@ -19,7 +24,7 @@ public class GUI extends JFrame {
 	private JTextField filename = new JTextField(), dir = new JTextField();
 	String file = "";
 	String path = "";
-	JScrollPane log;
+	JTextPane logPane;
 	JLabel logText;
 	JPanel panel;
     JScrollPane directory;
@@ -77,7 +82,7 @@ public class GUI extends JFrame {
 	    }
 		
 			else {
-				JOptionPane.showMessageDialog(null, "Not connected to any server");
+				JOptionPane.showMessageDialog(null, "Not connected to any node");
 			}
 		}
 	  }
@@ -130,7 +135,7 @@ public class GUI extends JFrame {
 			}
 		
 			else {
-				JOptionPane.showMessageDialog(null, "Not connected to any server");
+				JOptionPane.showMessageDialog(null, "Not connected to any node");
 			}
 		}
 	}
@@ -165,7 +170,7 @@ public class GUI extends JFrame {
 			
 			
 			else {
-				JOptionPane.showMessageDialog(null, "Not connected to any server");
+				JOptionPane.showMessageDialog(null, "Not connected to any node");
 			}
 		}
 
@@ -173,46 +178,28 @@ public class GUI extends JFrame {
 	
 	// Connection window
 	class Connect implements ActionListener {
-		JTextField serverAddr = new JTextField(1);
-		JTextField serverPort = new JTextField(1);
 		JTextField hostAddr = new JTextField(1);
 		JTextField hostPort = new JTextField(1);
-		String saddr;
-		String sport;
 		String haddr;
 		String hport;
 		
 		public void actionPerformed(ActionEvent e) {
-			JLabel textLabel1 = new JLabel();
-			JLabel textLabel2 = new JLabel();
 			JLabel textLabel3 = new JLabel();
 			JLabel textLabel4 = new JLabel();
-			textLabel1.setBounds(10,10,100,20);
-			textLabel1.setText("Server's address");
-			textLabel2.setBounds(10,30,100,20);
-			textLabel2.setText("Server's port");
 			textLabel3.setBounds(10,50,100,20);
 			textLabel3.setText("Host address");
 			textLabel4.setBounds(10,70,100,20);
 			textLabel4.setText("Host port");
 			
 			JPanel connectPanel = new JPanel();
-			serverAddr.setBounds(110,10,100,20);
-			serverPort.setBounds(110,30,100,20);
 			hostAddr.setBounds(110,50,100,20);
 			hostPort.setBounds(110,70,100,20);
 			
 			//SETTING DEFAULT VALUES
-			serverAddr.setText("localhost");
-			serverPort.setText("1234");
 			hostAddr.setText("localhost");
 			hostPort.setText("2000");
 			
 			connectPanel.setLayout(new GridLayout(4,1));
-			connectPanel.add(textLabel1);
-			connectPanel.add(serverAddr);
-			connectPanel.add(textLabel2);
-			connectPanel.add(serverPort);
 			connectPanel.add(textLabel3);
 			connectPanel.add(hostAddr);
 			connectPanel.add(textLabel4);
@@ -220,20 +207,17 @@ public class GUI extends JFrame {
 			int result = JOptionPane.showConfirmDialog(null, connectPanel,"", JOptionPane.OK_CANCEL_OPTION);
 			if (result == JOptionPane.OK_OPTION) {
 				//TODO: GIVE INFO TO CONTROLLER
-				saddr = serverAddr.getText();
-				sport = serverPort.getText();
 				haddr = hostAddr.getText();
 				hport = hostPort.getText();
 				try {
-					int sportint = Integer.parseInt(sport);
 					int hportint = Integer.parseInt(hport);
-					controller = new DHTController(haddr, hport, saddr, sport);
+					controller = new DHTController(haddr, hport);
 					connected = 1;
 					directory(controller.getDHTdir());
 					JOptionPane.showMessageDialog(null, "Connection completed.");
 	
 				} catch (Exception ex) {
-					JOptionPane.showMessageDialog(null, "Connection to server failed. Be sure your ports and addresses are correct.");
+					JOptionPane.showMessageDialog(null, "Connection to node failed. Be sure your ports and addresses are correct.");
 				}
 				}
 			};
@@ -257,7 +241,7 @@ public class GUI extends JFrame {
     			}
     		}
     		else {
-    			JOptionPane.showMessageDialog(null, "Not connected to any server.");
+    			JOptionPane.showMessageDialog(null, "Not connected to any node.");
     			System.exit(0);
     		}
     	}
@@ -284,7 +268,7 @@ public class GUI extends JFrame {
 	        			}
 	        		}
 	        		else {
-	        			JOptionPane.showMessageDialog(null, "Not connected to any server.");
+	        			JOptionPane.showMessageDialog(null, "Not connected to any node.");
 	        			System.exit(0);
 	        		}
 	        	}
@@ -316,17 +300,45 @@ public class GUI extends JFrame {
 
 	}
 	
-	public void log(String msg) {
+	
+	
+	private void updateTextPane(final String text) {
+	    SwingUtilities.invokeLater(new Runnable() {
+	      public void run() {
+	        Document doc = logPane.getDocument();
+	        try {
+	          doc.insertString(doc.getLength(), text, null);
+	        } catch (BadLocationException e) {
+	          throw new RuntimeException(e);
+	        }
+	        logPane.setCaretPosition(doc.getLength() - 1);
+	      }
+	    });
+	  }
 
-		String[] list = new String[] {msg};
-		JList dir = new JList(list);
-        log.getViewport().add(dir);
-	    panel.add(log);
-	    panel.add(logText);
-	}
+	  private void redirectSystemStreams() {
+	    OutputStream out = new OutputStream() {
+	      @Override
+	      public void write(final int b) throws IOException {
+	        updateTextPane(String.valueOf((char) b));
+	      }
+
+	      @Override
+	      public void write(byte[] b, int off, int len) throws IOException {
+	        updateTextPane(new String(b, off, len));
+	      }
+
+	      @Override
+	      public void write(byte[] b) throws IOException {
+	        write(b, 0, b.length);
+	      }
+	    };
+
+	    System.setOut(new PrintStream(out, true));
+	    System.setErr(new PrintStream(out, true));
+	  }
 	
-	// Initialization for main window and GUI
-	
+    // Initialization for main window and GUI
 	public GUI() {
 		
 		  
@@ -350,7 +362,7 @@ public class GUI extends JFrame {
 	    connectionButton.setBounds(200, 10, 100, 30);
 	    panel.add(connectionButton);
 	    connectionButton.addActionListener(new Connect());
-	    connectionButton.setToolTipText("Connect to server");
+	    connectionButton.setToolTipText("Connect to node");
 	    
 	    
 	    // Setting put button
@@ -383,7 +395,7 @@ public class GUI extends JFrame {
 	    disconnectButton.addActionListener(new Disconnect());
 	    
 	    panel.add(disconnectButton);
-	    disconnectButton.setToolTipText("Leave the server gently");
+	    disconnectButton.setToolTipText("Leave the node gently");
 	    
 	    // Setting directory refresh button
 	    JButton refreshButton = new JButton("Refresh");
@@ -394,7 +406,7 @@ public class GUI extends JFrame {
 	    			directory(controller.refreshDHTdir());
 	    	}
 	    		else {
-	    			JOptionPane.showMessageDialog(null, "Not connected to any server.");
+	    			JOptionPane.showMessageDialog(null, "Not connected to any node.");
 	    		}
 	    	}
 	    });
@@ -417,9 +429,14 @@ public class GUI extends JFrame {
 		logText = new JLabel();
 		logText.setBounds(500,80,100,20);
 		logText.setText("Log");
-	    log = new JScrollPane();
-        log.setBounds(500, 100, 400, 300);
-        log("No traffic");
+	    logPane = new JTextPane();
+        logPane.setBounds(500, 100, 700, 300);
+        panel.add(logText);
+        panel.add(logPane);
+        logPane.setEditable(false);
+        redirectSystemStreams();
+        
+        
 	    
 	    // Setting upper menu
 	    JMenuBar menubar = new JMenuBar();
