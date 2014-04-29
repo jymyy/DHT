@@ -75,20 +75,26 @@ public class GUI extends JFrame {
 				if (!(searchName == null) && !searchName.trim().equals("")) {
 					
 				
-					int response = controller.putFile(path+"/"+file, searchName);
-					if (response == 0) {
-						directory(controller.getDHTdir());
-						JOptionPane.showMessageDialog(null, "Putting file " + file + " to DHT completed.");
+					try {
+						int response = controller.putFile(path+"/"+file, searchName);
+						if (response == 0) {
+							directory(controller.getDHTdir());
+							JOptionPane.showMessageDialog(null, "Putting file " + file + " to DHT completed.");
+						}
+						else if (response == 1) {
+							JOptionPane.showMessageDialog(null, "Putting file failed.");
+						}
+						else if (response == 3) {
+							JOptionPane.showMessageDialog(null, "Filename already exists");
+						}
+						else {
+							JOptionPane.showMessageDialog(null, "IOExceptation while putting file.");
+						}
+					} catch (Exception error) {
+						JOptionPane.showMessageDialog(null, "Node is dead.");
+						connected = 0;
 					}
-					else if (response == 1) {
-						JOptionPane.showMessageDialog(null, "Putting file failed.");
-					}
-					else if (response == 3) {
-						JOptionPane.showMessageDialog(null, "Filename already exists");
-					}
-					else {
-						JOptionPane.showMessageDialog(null, "IOExceptation while putting file.");
-					}
+					
 				}
 				else {
 					JOptionPane.showMessageDialog(null, "Filename is needed.");
@@ -133,20 +139,25 @@ public class GUI extends JFrame {
 	    		
 					path = fileChooser.getCurrentDirectory().toString();
 					Log.info(TAG, "Directory: " + path);
-					int response = controller.getFile(searchName, path, file);
-					if (response == 0) {
-						directory(controller.getDHTdir());
-						JOptionPane.showMessageDialog(null, "Downloading file " + searchName + " completed.");
-					}
-					else if (response == 1) {
-						JOptionPane.showMessageDialog(null, "File not found in DHT.");
-					}
-					else if (response == 2) {
-						JOptionPane.showMessageDialog(null, "File corrupted, download aborted.");
-					}
-					else {
-						JOptionPane.showMessageDialog(null, "Error.");
-					}
+					try {
+						int response = controller.getFile(searchName, path, file);
+						if (response == 0) {
+							directory(controller.getDHTdir());
+							JOptionPane.showMessageDialog(null, "Downloading file " + searchName + " completed.");
+						}
+						else if (response == 1) {
+							JOptionPane.showMessageDialog(null, "File not found in DHT.");
+						}
+						else if (response == 2) {
+							JOptionPane.showMessageDialog(null, "File corrupted, download aborted.");
+						}
+						else {
+							JOptionPane.showMessageDialog(null, "Error.");
+						}
+					} catch (Exception error) {
+						JOptionPane.showMessageDialog(null, "Node is dead.");
+						connected = 0;
+				}
 				}
 				}
 				else {
@@ -178,17 +189,22 @@ public class GUI extends JFrame {
 						null,
 						null);
 		    		Log.info(TAG, "File to be dumped: " + searchName);
-		    		int response = controller.dumpFile(searchName);
-					if (response == 0) {
-						directory(controller.getDHTdir());
-						JOptionPane.showMessageDialog(null, "Dumping file completed.");
-					}
-					else if (response == 1) {
-						JOptionPane.showMessageDialog(null, "File not found in DHT.");
-					}
-					else {
-						JOptionPane.showMessageDialog(null, "Error.");
-					}
+		    		try {
+		    			int response = controller.dumpFile(searchName);
+		    			if (response == 0) {
+		    				directory(controller.getDHTdir());
+		    				JOptionPane.showMessageDialog(null, "Dumping file completed.");
+		    			}
+		    			else if (response == 1) {
+		    				JOptionPane.showMessageDialog(null, "File not found in DHT.");
+		    			}
+		    			else {
+		    				JOptionPane.showMessageDialog(null, "Error.");
+		    			}
+		    		} catch (Exception error) {
+						JOptionPane.showMessageDialog(null, "Node is dead.");
+						connected = 0;
+		    		}
 		    }
 			
 			
@@ -256,17 +272,22 @@ public class GUI extends JFrame {
 	class Disconnect implements ActionListener {
 		public void actionPerformed(ActionEvent event) {
     		if (connected == 1) {
-    		int terminate = controller.terminate();
-    		if (terminate == 0) {
-    			JOptionPane.showMessageDialog(null, "Disconnected.");
-    			connected = 0;
-    		}
-    		else if (terminate == 1)
-    		{
-    			JOptionPane.showMessageDialog(null, "Termination denied.");
-    			}
-    		else if (terminate == -1) {
-    			JOptionPane.showMessageDialog(null, "Termination failed.");
+    			try {
+    				int terminate = controller.terminate();
+    				if (terminate == 0) {
+    					JOptionPane.showMessageDialog(null, "Disconnected.");
+    					connected = 0;
+    				}
+    				else if (terminate == 1)
+    				{
+    					JOptionPane.showMessageDialog(null, "Termination denied.");
+    				}
+    				else if (terminate == -1) {
+    					JOptionPane.showMessageDialog(null, "Termination failed.");
+    				}
+    			} catch (Exception error) {
+					JOptionPane.showMessageDialog(null, "Node is dead.");
+					connected = 0;
     			}
     		}
     		else {
@@ -290,18 +311,23 @@ public class GUI extends JFrame {
 	    				System.exit(0);
 	    		}
 	    		else if (reply == JOptionPane.YES_OPTION) {
-	    			int terminate = controller.terminate();
-	    			if (terminate == 0) {
-	    				System.exit(0);
+	    			try {
+	    				int terminate = controller.terminate();
+	    				if (terminate == 0) {
+	    					System.exit(0);
+	    				}
+	    				else if (terminate == 1)
+	    				{
+	    					JOptionPane.showMessageDialog(null, "Termination denied.");
+	    				}
+	    				else if (terminate == -1) {
+	    					JOptionPane.showMessageDialog(null, "Termination failed.");
+	    				}
+	    			} catch (Exception error) {
+						JOptionPane.showMessageDialog(null, "Node is dead.");
+						connected = 0;
 	    			}
-	    			else if (terminate == 1)
-	    			{
-	    				JOptionPane.showMessageDialog(null, "Termination denied.");
-	    			}
-	    			else if (terminate == -1) {
-	    				JOptionPane.showMessageDialog(null, "Termination failed.");
-	    			}
-	        	}
+	    		}
 	    		else {
 	    			
 	    		}
@@ -458,7 +484,12 @@ public class GUI extends JFrame {
 	    refreshButton.addActionListener(new ActionListener() {
 	    	public void actionPerformed(ActionEvent event) {
 	    		if (connected == 1) {
-	    			directory(controller.refreshDHTdir());
+	    			try {
+	    				directory(controller.refreshDHTdir());
+	    			} catch (Exception error) {
+						JOptionPane.showMessageDialog(null, "Node is dead.");
+						connected = 0;
+	    			}
 	    	}
 	    		else {
 	    			JOptionPane.showMessageDialog(null, "Not connected to any node.");
@@ -501,19 +532,24 @@ public class GUI extends JFrame {
 	    		
 					path = fileChooser.getCurrentDirectory().toString();
 					Log.info(TAG, "Directory: " + path);
-					int response = controller.getFile(dirFilename, path, file);
-					if (response == 0) {
-						directory(controller.getDHTdir());
-						JOptionPane.showMessageDialog(null, "Downloading file " + dirFilename + " completed.");
-					}
-					else if (response == 1) {
-						JOptionPane.showMessageDialog(null, "File not found in DHT.");
-					}
-					else if (response == 2) {
-						JOptionPane.showMessageDialog(null, "File corrupted, download aborted.");
-					}
-					else {
-						JOptionPane.showMessageDialog(null, "Error.");
+					try {
+						int response = controller.getFile(dirFilename, path, file);
+						if (response == 0) {
+							directory(controller.getDHTdir());
+							JOptionPane.showMessageDialog(null, "Downloading file " + dirFilename + " completed.");
+						}
+						else if (response == 1) {
+							JOptionPane.showMessageDialog(null, "File not found in DHT.");
+						}
+						else if (response == 2) {
+							JOptionPane.showMessageDialog(null, "File corrupted, download aborted.");
+						}
+						else {
+							JOptionPane.showMessageDialog(null, "Error.");
+						}
+					} catch (Exception error) {
+						JOptionPane.showMessageDialog(null, "Node is dead.");
+						connected = 0;
 					}
 				}
 		    }
@@ -522,17 +558,22 @@ public class GUI extends JFrame {
 	    popupDump.addActionListener(new ActionListener() {
 		    public void actionPerformed(ActionEvent e) {
 		    		Log.info(TAG, "File to be dumped: " + dirFilename);
-		    		int response = controller.dumpFile(dirFilename);
-					if (response == 0) {
-						directory(controller.getDHTdir());
-						JOptionPane.showMessageDialog(null, "Dumping file completed.");
-					}
-					else if (response == 1) {
-						JOptionPane.showMessageDialog(null, "File not found in DHT.");
-					}
-					else {
-						JOptionPane.showMessageDialog(null, "Error.");
-					}
+		    		try {
+		    			int response = controller.dumpFile(dirFilename);
+		    			if (response == 0) {
+		    				directory(controller.getDHTdir());
+		    				JOptionPane.showMessageDialog(null, "Dumping file completed.");
+		    			}
+		    			else if (response == 1) {
+		    				JOptionPane.showMessageDialog(null, "File not found in DHT.");
+		    			}
+		    			else {
+		    				JOptionPane.showMessageDialog(null, "Error.");
+		    			}
+		    		} catch (Exception error) {
+						JOptionPane.showMessageDialog(null, "Node is dead.");
+						connected = 0;
+		    		}
 		    }
 	    });
 	    
@@ -541,7 +582,6 @@ public class GUI extends JFrame {
 		logText.setBounds(500,80,100,20);
 		logText.setText("Log");
 	    logPane = new JTextPane();
-        logPane.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         logPane.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         panel.add(logText);
 		logScroll = new JScrollPane(logPane);
@@ -558,24 +598,19 @@ public class GUI extends JFrame {
 	    // Setting upper menu
 	    JMenuBar menubar = new JMenuBar();
 	    JMenu fileMenu = new JMenu("File");
-	    JMenu helpMenu = new JMenu("Help");
 	    JMenuItem eMenuItem = new JMenuItem("Exit");
 	    JMenuItem connectItem = new JMenuItem("Connect");
 	    JMenuItem putItem = new JMenuItem("Put");
 	    JMenuItem getItem = new JMenuItem("Get");
 	    JMenuItem dumpItem = new JMenuItem("Dump");
 	    JMenuItem disconnectItem = new JMenuItem("Disconnect");
-	    JMenuItem dMenuItem = new JMenuItem("Documentation");
 	    fileMenu.add(connectItem);
 	    fileMenu.add(putItem);
 	    fileMenu.add(getItem);
 	    fileMenu.add(dumpItem);
 	    fileMenu.add(disconnectItem);
 	    fileMenu.add(eMenuItem);
-	    helpMenu.add(dMenuItem);
 	    menubar.add(fileMenu);
-	    menubar.add(Box.createHorizontalGlue());
-	    menubar.add(helpMenu);
 	    setJMenuBar(menubar);
 	    
 	    connectItem.addActionListener(new Connect());
@@ -584,19 +619,6 @@ public class GUI extends JFrame {
 	    dumpItem.addActionListener(new Dump());
 	    disconnectItem.addActionListener(new Disconnect());
 	    eMenuItem.addActionListener(new Exit());
-	    
-	    
-	    dMenuItem.addActionListener(new ActionListener() {
-	    public void actionPerformed(ActionEvent e) {
-	    try {
-	    	// !! WORKS ON WINDOWS !!
-	    	File documentation = new File("home/group02/releases/iteration1/doc/iteration1.pdf");
-	    	Desktop.getDesktop().open(documentation);
-	    } catch (Exception ex) {
-	    	JOptionPane.showMessageDialog(null, "Documentation file not found.");
-	    	}
-	    	}
-	    });
 	    
 
 	    
