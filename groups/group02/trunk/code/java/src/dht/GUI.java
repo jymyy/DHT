@@ -72,7 +72,7 @@ public class GUI extends JFrame {
 						file);
 	    		
 
-				if (!(searchName == null) && !searchName.equals("")) {
+				if (!(searchName == null) && !searchName.trim().equals("")) {
 					
 				
 					int response = controller.putFile(path+"/"+file, searchName);
@@ -119,7 +119,7 @@ public class GUI extends JFrame {
 						null,
 						null); 
 				
-				if (!(searchName == null) && !searchName.equals("")) {
+				if (!(searchName == null) && !searchName.trim().equals("")) {
 					
 				
 				JFileChooser fileChooser = new JFileChooser();
@@ -408,31 +408,7 @@ public class GUI extends JFrame {
 		// Setting up exit listener
 		addWindowListener(new WindowAdapter() {
 		  	public void windowClosing(WindowEvent e) {
-		    	if (connected == 1) {
-		    		Object[] options = {"Normally", "Abnormally"};
-		    		int reply = JOptionPane.showOptionDialog(GUI.this, "Exit via disconnecting normally or abnormally?", "Exit", 
-		    				JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
-		    				null, options, options[1]);
-		    		if (reply == JOptionPane.NO_OPTION) {
-		    				System.exit(0);
-		    		}
-		    		else if (reply == JOptionPane.YES_OPTION) {
-		    			int terminate = controller.terminate();
-		    			if (terminate == 0) {
-		    				System.exit(0);
-		    			}
-		    			else if (terminate == 1)
-		    			{
-		    				JOptionPane.showMessageDialog(null, "Termination denied.");
-		    			}
-		    			else if (terminate == -1) {
-		    				JOptionPane.showMessageDialog(null, "Termination failed.");
-		    			}
-		        	}
-		    	}
-		        else {
 		        	System.exit(0);
-		        	}
 		        }
 		});
 		
@@ -545,9 +521,18 @@ public class GUI extends JFrame {
 	    
 	    popupDump.addActionListener(new ActionListener() {
 		    public void actionPerformed(ActionEvent e) {
-		    	Log.info(TAG, "File to be dumped from directory " + dirFilename);
-		    	controller.dumpFile(dirFilename);
-		    	directory(controller.getDHTdir());
+		    		Log.info(TAG, "File to be dumped: " + dirFilename);
+		    		int response = controller.dumpFile(dirFilename);
+					if (response == 0) {
+						directory(controller.getDHTdir());
+						JOptionPane.showMessageDialog(null, "Dumping file completed.");
+					}
+					else if (response == 1) {
+						JOptionPane.showMessageDialog(null, "File not found in DHT.");
+					}
+					else {
+						JOptionPane.showMessageDialog(null, "Error.");
+					}
 		    }
 	    });
 	    
@@ -624,3 +609,4 @@ public class GUI extends JFrame {
 	}
 	
 }
+
