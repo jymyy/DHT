@@ -542,6 +542,7 @@ public class GUI extends JFrame {
 		logText.setText("Log");
 	    logPane = new JTextPane();
         logPane.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        logPane.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         panel.add(logText);
 		logScroll = new JScrollPane(logPane);
         logScroll.setBounds(500, 100, 600, 300);

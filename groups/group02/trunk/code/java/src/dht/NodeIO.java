@@ -103,6 +103,10 @@ public class NodeIO {
             // Read header
             while (bytesMissing > 0) {
                 bytesRead = this.inStream.read(bytesReadBuf, bytesTotal, bytesMissing);
+                if (bytesRead == -1) {
+                	Log.error(TAG, "Connection to node lost");
+                	return new byte[0];
+                }
                 bytesTotal += bytesRead;
                 bytesMissing -= bytesRead;
             }
@@ -115,6 +119,10 @@ public class NodeIO {
             // Read rest of the block (nothing if payload length is 0)
             while (bytesMissing > 0) {
                 bytesRead = this.inStream.read(bytesReadBuf, bytesTotal, bytesMissing);
+                if (bytesRead == -1) {
+                	Log.error(TAG, "Connection to node lost");
+                	return new byte[0];
+                }
                 bytesTotal += bytesRead;
                 bytesMissing -= bytesRead;
             }
