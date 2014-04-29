@@ -23,7 +23,7 @@ public class NodeIO {
 
     /**
      * Connect to node using controller's parameters (controller is supplied in constructor).
-     * @return True if connection was created succesfully
+     * @return True if connection was created successfully
      */
 	public Boolean connectNode() {
 		int hostPort;
