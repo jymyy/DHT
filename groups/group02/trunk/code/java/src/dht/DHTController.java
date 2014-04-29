@@ -1,6 +1,5 @@
 package dht;
 
-import java.net.Socket;
 import java.nio.*;
 import java.security.MessageDigest;
 import java.io.*;
@@ -76,21 +75,27 @@ public class DHTController {
 	 *  0 if successful
 	 *  1 if an error occurred with
 	 *  2 if IOError occurs
-	 *  3 if 
+	 *  3 if file with same name already exists
 	 */
 	public int putFile(String filePath, String dhtFileName) {
 		try {
 			File file = new File(filePath);
-			
+			if (dhtDir.contains(dhtFileName)) {
+				return 3;
+			}
+				
 			// How many blocks are needed
 			long fileSize = file.length(); 	
 			int totalBlocks = (int) (fileSize / (MAX_BLOCK_PL_SIZE));
 			if (fileSize % (MAX_BLOCK_PL_SIZE) != 0) {
 				totalBlocks++;
 			}
-			// Init progress bar
-			startProgress(1, totalBlocks*2 +1 +5 , "Uploading file " + dhtFileName);
-
+			// Init progress bar ()
+			startProgress(1, 1 + totalBlocks*2 +8 +5 , "Uploading file " + dhtFileName);
+			
+			// Lock the first block
+			lockBlock(getSHA1(dhtFileName+"-PART1"));
+			
 			InputStream fis = new FileInputStream(file);
 			byte[] nextPayloadBuf;
 			byte[] nextPayload;
@@ -106,26 +111,36 @@ public class DHTController {
 				if (response != 0) {
 					Log.warn(TAG, "Put file failed");
 					fis.close();
+					//Release the first block
+					releaseBlock(getSHA1(dhtFileName+"-PART1"));
 					this.progressBar.interrupt();
 					return 1;
 				}
 			}
-			
 			fis.close();
 			
 		} catch (IOException e) {
 			Log.error(TAG, "IOException while downloading a file");
 			e.printStackTrace();
 			this.progressBar.interrupt();
+			//Release the first block
+			releaseBlock(getSHA1(dhtFileName+"-PART1"));
 			return 2;
 		}
+		
+		// Lock the directory
+		lockBlock(dirKey);
 		getDir();
 		dhtDir.add(dhtFileName);
 		putDir();
 		// Everything worked
+		//Release the directory and the first block
+		releaseBlock(dirKey);
+		releaseBlock(getSHA1(dhtFileName+"-PART1"));
 		this.progressBar.interrupt();
 		return 0;
 	}
+	
 	
 	/**
 	 * Gets the given file from the DHT and saves it to given path
@@ -136,6 +151,7 @@ public class DHTController {
 	 * 	0 if successful or 
 	 * 	1 if a file with that name wasn't found
 	 *  2 if the file was corrupted (missing block)
+	 *  3 if IOError occurs while saving the file
 	 */
 	public int getFile(String dhtFileName, String path, String newFileName) {
 		byte[] blockKey = getSHA1(dhtFileName +"-PART1");
@@ -163,17 +179,20 @@ public class DHTController {
 			ByteBuffer bb = ByteBuffer.wrap(bTotalBlocks);
 			int totalBlocks = (int) bb.getShort(); 
 			// Start progress bar for downloading
-			startProgress(2, totalBlocks*3 +2 +3, "Downloading " + dhtFileName);
-			
+			startProgress(2, 2 + totalBlocks*3 +8 +3, "Downloading " + dhtFileName);
+			// Lock the first block
+			lockBlock(getSHA1(dhtFileName+"-PART1"));
+
 			int blockNo = 1;
 			while (blockNo < totalBlocks) {
 				blockNo++;
 				blockKey = getSHA1(dhtFileName +"-PART" + Integer.toString(blockNo));
 				block = getBlock(blockKey);
 				if (block == null) {
-					// File was missing a block
 					Log.info(TAG, "File was missing a block -> Aborting");
 					fos.close();
+					//Release the first block
+					releaseBlock(getSHA1(dhtFileName+"-PART1"));
 					this.progressBar.interrupt();
 					return 2;
 				}
@@ -181,11 +200,22 @@ public class DHTController {
 				addProgress();
 			} 
 			fos.close();
+			// Lock the directory
+			lockBlock(dirKey);
 			getDir();
-			
+			//Release the directory and the first block
+			releaseBlock(dirKey);
+			releaseBlock(getSHA1(dhtFileName+"-PART1"));
 		} catch (Exception e) {
-			e.printStackTrace();
+			Log.error(TAG, "Error with file saving.");
+			//Release the directory and the first block
+			releaseBlock(dirKey);
+			releaseBlock(getSHA1(dhtFileName+"-PART1"));
+			return 3;
 		}
+		//Release the directory and the first block
+		releaseBlock(dirKey);
+		releaseBlock(getSHA1(dhtFileName+"-PART1"));
 		this.progressBar.interrupt();
 		return 0;
 	}
@@ -200,13 +230,17 @@ public class DHTController {
 	 * 	0 if dumping was successful or 
 	 * 	1 if file with that name wasn't found
 	 */
-	public int dumpFile(String fileName) {
-		startProgress(0, 2, "Searching the DHT for " + fileName);
-		byte[] blockKey = getSHA1(fileName +"-PART1");
+	public int dumpFile(String dhtFileName) {
+		startProgress(0, 2, "Searching the DHT for " + dhtFileName);
+		byte[] blockKey = getSHA1(dhtFileName +"-PART1");
+		// Lock the first block
+		lockBlock(getSHA1(dhtFileName+"-PART1"));
 		byte[] firstBlock = getBlock(blockKey);
 		if (firstBlock == null) {
 			//First block not found
 			Log.info(TAG, "File was not found.");
+			//Release the first block
+			releaseBlock(getSHA1(dhtFileName+"-PART1"));
 			this.progressBar.interrupt();
 			return 1;
 		}
@@ -215,19 +249,25 @@ public class DHTController {
 		ByteBuffer bb = ByteBuffer.wrap(bTotalBlocks);
 		int totalBlocks = (int) bb.getShort(); 
 		// Start progress bar for downloading
-		startProgress(2, totalBlocks*3 +2 +2, "Dumping " + fileName);
+		startProgress(4, 4 + totalBlocks*3 +6 +2, "Dumping " + dhtFileName);
+		
 		
 		// Go through all blocks of the file
 		int blockNo = 1;
 		do {
-			blockKey = getSHA1(fileName +"-PART" + Integer.toString(blockNo));
+			blockKey = getSHA1(dhtFileName +"-PART" + Integer.toString(blockNo));
 			dumpBlock(blockKey);
 			addProgress(); // Notify that the operation has progressed
 			blockNo++;
 		} while (blockNo <= totalBlocks);
+		// Lock the directory
+		lockBlock(dirKey);
 		getDir();
-		dhtDir.remove(fileName);
+		dhtDir.remove(dhtFileName);
 		putDir();
+		//Release the directory and the first block
+		releaseBlock(dirKey);
+		releaseBlock(getSHA1(dhtFileName+"-PART1"));
 		this.progressBar.interrupt();
 		return 0;
 	}
@@ -283,8 +323,6 @@ public class DHTController {
 					return -1;
 				}
 				addProgress();
-				
-				
 			}
 		}
 		else if (responseCode == this.CMD_TERMINATE_DENY) {
@@ -310,17 +348,21 @@ public class DHTController {
 		return dirArray;
 	}
 	
+	
 	/**
 	 * Gets the directory of all files in the DHT from the
 	 * DHT, updates the local copy and returns it.
 	 */
 	public String[] refreshDHTdir() {
 		startProgress(0,3,"Refreshing the local copy of the DHT directory");
+		// Lock the directory
+		lockBlock(dirKey);
 		getDir();
+		//Release the directory
+		releaseBlock(dirKey);
 		String[] dirArray = this.dhtDir.toArray(new String[dhtDir.size()]);
 		return dirArray;
 	}
-	
 	
 	
 	/**
@@ -443,7 +485,7 @@ public class DHTController {
 	 * @param block
 	 * @return
 	 * 	0 if successful
-	 * 	-1 if put fails somehow
+	 * -1 if put fails somehow
 	 */
 	private int putBlock(DataBlock block) {
 		byte[] cmd = block.getPutBlock(CMD_PUT_DATA);
@@ -532,6 +574,53 @@ public class DHTController {
         }
 	}
 	
+	/**
+	 * Requests node to lock the block with given key. Waits until 
+	 * the lock has been acquired.
+	 * Increments progress bar twice.
+	 * @return
+	 * 	0 if successful
+	 * -1 otherwise
+	 */
+	private int lockBlock(byte[] blockKey) {
+		nodeIO.sendCommand(DataBlock.getCommand(CMD_ACQUIRE_REQUEST, blockKey));
+		Log.debug(TAG, "Requested to lock a block");
+		addProgress();
+		byte[] nodeResponse = nodeIO.readCommand();
+		addProgress();
+		char responseCode = extractResponseCode(nodeResponse);
+		if (responseCode == this.CMD_ACQUIRE_ACK) {
+			Log.debug(TAG, "Lock aquired.");
+			return 0;
+		}
+		else {
+			return -1;
+		}
+	}
+	
+	/**
+	 * Requests node to release the block with given key. Waits until 
+	 * the lock has been released.
+	 * Increments progress bar twice.
+	 * @return
+	 * 	0 if successful
+	 * -1 otherwise
+	 */
+	private int releaseBlock(byte[] blockKey) {
+		nodeIO.sendCommand(DataBlock.getCommand(CMD_RELEASE_REQUEST, blockKey));
+		Log.debug(TAG, "Requested to release a block");
+		addProgress();
+		byte[] nodeResponse = nodeIO.readCommand();
+		addProgress();
+		char responseCode = extractResponseCode(nodeResponse);
+		if (responseCode == CMD_RELEASE_ACK) {
+			Log.debug(TAG, "Block released");
+			return 0;
+		}
+		else {
+			return -1;
+		}
+	}
 	
 	/**
 	 * Computes SHA1 hashes from given strings
@@ -553,15 +642,21 @@ public class DHTController {
 		return hashKey;
 	}
 	
+	/**
+	 * Starts new progress bar with initial value, max value and status explanation on 
+	 * what the program is currently doing.
+	 */
 	private void startProgress(int progValue, int maxValue, String newProgBarStatus) {
 		progBarStatus = newProgBarStatus;
 		progBarValue = progValue;
 		progBarMax = maxValue;
 		this.progressBar = new Progressbar(progValue, maxValue, progBarStatus);
-
-		
 	}
-
+	
+	/**
+	 * Increments the current progress bar in a fail safe way,
+	 * meaning it can't over flow.
+	 */
 	private void addProgress() {
 		progBarValue++;
 		if (progBarValue > progBarMax) {
@@ -576,9 +671,9 @@ public class DHTController {
 	}
 	
 	
-	
-
-	// Returns the responseCode extracted from DHTnode's response command
+	/**
+	 * Returns the responseCode extracted from DHTnode's response command
+	 */
 	private char extractResponseCode(byte[] nodeResponse) {
 
         if (nodeResponse.length == 0) {
