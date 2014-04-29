@@ -6,25 +6,27 @@ import javax.swing.text.Document;
 
 import java.awt.event.*;
 import java.awt.Desktop;
-import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
 import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.*;
 
 public class GUI extends JFrame {
 	
-	// Basic variables
+	/**
+	* Basic variables used in whole class GUI
+	*/
+	
 	public static String TAG = "GUI";
 	DHTController controller;
 	JProgressBar progressBar;
+	
+	// STATE EXAMINING WHETHER GUI IS CONNECTED TO NODE OR NOT (DISCONNECTED = 0 & CONNECTED = 1)
 	int connected = 0;
-	private JTextField filename = new JTextField(), dir = new JTextField();
+	
 	String file = "";
 	String path = "";
 	JTextPane logPane;
@@ -41,87 +43,96 @@ public class GUI extends JFrame {
     DefaultCaret caret;
  
 	
-	// Choosing a file to be put into DHT
+	/**
+	* Putting a file to DHT
+	*/
+	
     
 	class PutFile implements ActionListener {
 		public void actionPerformed(ActionEvent e) {
 			if (connected == 1) {
-	    	JFileChooser c = new JFileChooser();
+	    	JFileChooser fileChooser = new JFileChooser();
 	    	
-	    	// Demonstrate "Open" dialog:
-	    	int rVal = c.showOpenDialog(GUI.this);
+	    	int rVal = fileChooser.showOpenDialog(GUI.this);
 	    	if (rVal == JFileChooser.APPROVE_OPTION) {
-	    		filename.setText(c.getSelectedFile().getName());
 	    		
-	    		file = c.getSelectedFile().getName();
+	    		file = fileChooser.getSelectedFile().getName();
 	    		Log.info(TAG, "Name of the file: " + file);
 	    		
-	    		dir.setText(c.getCurrentDirectory().toString());
 	    		
-	    		path = c.getCurrentDirectory().toString();
+	    		path = fileChooser.getCurrentDirectory().toString();
 	    		Log.info(TAG, "Directory: " + path);
 				String searchName = (String)JOptionPane.showInputDialog(
 						GUI.this, 
-						"Give a filename to be saved ",
+						"Give a name for the file as to be saved in DHT",
 						"Get file",
 						JOptionPane.PLAIN_MESSAGE,
 						null,
 						null,
-						null);
+						file);
 	    		
-	    		int response = controller.putFile(path+"/"+file, searchName);
-				if (response == 0) {
-					directory(controller.getDHTdir());
-					JOptionPane.showMessageDialog(null, "Putting file " + file + " to DHT completed.");
-				}
-				else if (response == 1) {
-					JOptionPane.showMessageDialog(null, "Putting file failed.");
-				}
-				else if (response == 3) {
-					JOptionPane.showMessageDialog(null, "Filename already exists");
+
+				if (!(searchName == null) && !searchName.equals("")) {
+					
+				
+					int response = controller.putFile(path+"/"+file, searchName);
+					if (response == 0) {
+						directory(controller.getDHTdir());
+						JOptionPane.showMessageDialog(null, "Putting file " + file + " to DHT completed.");
+					}
+					else if (response == 1) {
+						JOptionPane.showMessageDialog(null, "Putting file failed.");
+					}
+					else if (response == 3) {
+						JOptionPane.showMessageDialog(null, "Filename already exists");
+					}
+					else {
+						JOptionPane.showMessageDialog(null, "IOExceptation while putting file.");
+					}
 				}
 				else {
-					JOptionPane.showMessageDialog(null, "IOExceptation while putting file.");
+					JOptionPane.showMessageDialog(null, "Filename is needed.");
 				}
 	     	}
-	    	if (rVal == JFileChooser.CANCEL_OPTION) {
-	    		filename.setText("You pressed cancel");
-	    		dir.setText("");
-	    	}
-	    }
+	    	
+		}
 		
-			else {
-				JOptionPane.showMessageDialog(null, "Not connected to any node");
-			}
+		else {
+			JOptionPane.showMessageDialog(null, "Not connected to any node");
+		}
 		}
 	  }
 	
-	// Saving a file from DHT for user
+	/**
+	* Saving a file from DHT
+	*/
+	
 	class GetFile implements ActionListener {
 		public void actionPerformed(ActionEvent e) {
 			if (connected == 1) {
 				String searchName = (String)JOptionPane.showInputDialog(
 						GUI.this, 
-						"Give a filename",
+						"Give a name of the file to download from DHT",
 						"Get file",
 						JOptionPane.PLAIN_MESSAGE,
 						null,
 						null,
 						null); 
 				
-				JFileChooser c = new JFileChooser();
-				int rVal = c.showSaveDialog(GUI.this);
+				if (!(searchName == null) && !searchName.equals("")) {
+					
+				
+				JFileChooser fileChooser = new JFileChooser();
+				fileChooser.setSelectedFile(new File("/home/Downloads/" + searchName));
+				int rVal = fileChooser.showSaveDialog(GUI.this);
 				if (rVal == JFileChooser.APPROVE_OPTION) {
-					filename.setText(c.getSelectedFile().getName());
 	    		
-					file = c.getSelectedFile().getName();
+					file = fileChooser.getSelectedFile().getName();
 					Log.info(TAG, "Name of the file: " + file);
 	    		
-					dir.setText(c.getCurrentDirectory().toString());
 	    		
-					path = c.getCurrentDirectory().toString();
+					path = fileChooser.getCurrentDirectory().toString();
 					Log.info(TAG, "Directory: " + path);
-					//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
 					int response = controller.getFile(searchName, path, file);
 					if (response == 0) {
 						directory(controller.getDHTdir());
@@ -137,9 +148,9 @@ public class GUI extends JFrame {
 						JOptionPane.showMessageDialog(null, "Error.");
 					}
 				}
-				if (rVal == JFileChooser.CANCEL_OPTION) {
-					filename.setText("You pressed cancel");
-					dir.setText("");
+				}
+				else {
+					JOptionPane.showMessageDialog(null, "Filename is needed.");
 				}
 			}
 		
@@ -150,7 +161,10 @@ public class GUI extends JFrame {
 	}
 	
 	
-	// Dump window
+	/**
+	* Dumping a file from DHT
+	*/
+	
 	class Dump implements ActionListener {
 		
 		public void actionPerformed(ActionEvent e) {
@@ -185,7 +199,10 @@ public class GUI extends JFrame {
 
 	}
 	
-	// Connection window
+	/**
+	* Connect pop up window
+	*/
+	
 	class Connect implements ActionListener {
 		JTextField hostAddr = new JTextField(1);
 		JTextField hostPort = new JTextField(1);
@@ -204,7 +221,7 @@ public class GUI extends JFrame {
 			hostAddr.setBounds(110,50,100,20);
 			hostPort.setBounds(110,70,100,20);
 			
-			//SETTING DEFAULT VALUES
+			// SETTING DEFAULT VALUES
 			hostAddr.setText("localhost");
 			hostPort.setText("2000");
 			
@@ -215,10 +232,10 @@ public class GUI extends JFrame {
 			connectPanel.add(hostPort);
 			int result = JOptionPane.showConfirmDialog(null, connectPanel,"", JOptionPane.OK_CANCEL_OPTION);
 			if (result == JOptionPane.OK_OPTION) {
-				//TODO: GIVE INFO TO CONTROLLER
 				haddr = hostAddr.getText();
 				hport = hostPort.getText();
 				try {
+					// TESTING WHETHER INPUTS ARE CORRECT (PORT IS INTEGER)
 					int hportint = Integer.parseInt(hport);
 					controller = new DHTController(haddr, hport);
 					connected = 1;
@@ -232,10 +249,12 @@ public class GUI extends JFrame {
 			};
 	}
 	
+	/**
+	* Disconnect action listener
+	*/
 	
 	class Disconnect implements ActionListener {
 		public void actionPerformed(ActionEvent event) {
-    		//TODO: EXIT GENTLY
     		if (connected == 1) {
     		int terminate = controller.terminate();
     		if (terminate == 0) {
@@ -255,6 +274,10 @@ public class GUI extends JFrame {
     		}
     	}
 	}
+	
+	/**
+	* Exit action listener
+	*/
 	
 	class Exit implements ActionListener {
 		public void actionPerformed(ActionEvent event) {
@@ -284,7 +307,6 @@ public class GUI extends JFrame {
 	    		}
 	    	}
 	        else {
-	        	JOptionPane.showMessageDialog(null, "Not connected to any node.");
 	        	System.exit(0);
 	        	}
 	        }
@@ -292,13 +314,17 @@ public class GUI extends JFrame {
 		
 	
 
-	
+	/**
+	* Creating DHT directory and updating it
+	*/
 	
 	public void directory(String[] list) {
 		DHTdir = new JList(list);
         directory.getViewport().add(DHTdir);
 	    panel.add(directory);
 	    panel.add(dirText);
+	    
+	    // Adding a mouselistener for DHT directory window, to examine right clicks and on which objects they were made
 	    MouseListener mouseListener = new MouseAdapter() {
 	    	public void mouseClicked(MouseEvent mouseEvent) {
 	    		JList theList = (JList) mouseEvent.getSource();
@@ -317,7 +343,10 @@ public class GUI extends JFrame {
 
 	}
 	
-	
+	/**
+	* Updating log
+	*/
+	  
 	
 	private void updateTextPane(final String text) {
         Document doc = logPane.getDocument();
@@ -326,13 +355,18 @@ public class GUI extends JFrame {
         } catch (BadLocationException e) {
           throw new RuntimeException(e);
         }
-        logPane.setCaretPosition(doc.getLength() - 1);
-		Rectangle paneRect = logPane.getBounds();
-		paneRect.x = 0;
-		paneRect.y = 0;
-		logPane.paintImmediately(paneRect);
+        logPane.setCaretPosition(doc.getLength() - 1); 
+		Rectangle paneRect = logPane.getBounds(); // WITHOUT THESE 4 LINES, 
+		paneRect.x = 0;							  // LOG WOULDN'T
+		paneRect.y = 0;							  // UPDATE ITSELF SIMULTANEOUSLY
+		logPane.paintImmediately(paneRect);		  // WITH OTHER PROCESSES
 
 	  }
+	
+	/**
+	* Redirecting stderr messages for log
+	*/
+	  	
 
 	  private void redirectSystemStreams() {
 	    OutputStream out = new OutputStream() {
@@ -356,11 +390,14 @@ public class GUI extends JFrame {
 	    System.setErr(new PrintStream(out, true));
 	  }
 	
-    // Initialization for main window and GUI
+	/**
+	* Initialization for main window and GUI
+	*/
+	  
 	public GUI() {
 		
 		  
-		// Setting up main window
+		// Setting up main window frame and panel
 		setTitle("DHT GUI");
 		setSize(1150,600);
 		setLocationRelativeTo(null);
@@ -455,7 +492,7 @@ public class GUI extends JFrame {
 	    refreshButton.setToolTipText("Refresh DHT directory");
 	    panel.add(refreshButton);
 	    
-	    // Setting directory & it's popup menu
+	    // Setting DHT directory & it's popup menu
 	    
 		dirText = new JLabel();
 		dirText.setBounds(50,80,100,20);
@@ -473,25 +510,21 @@ public class GUI extends JFrame {
 	    popup.add(popupDump);
 	    panel.add(popup);
 	    
-	    // Popup menu's listeners for get and dump
+	    // DHT directory's popup menu's listeners for get and dump
 	    
 	    popupGet.addActionListener(new ActionListener() {
 		    public void actionPerformed(ActionEvent e) {
-		    	Log.info(TAG, "File to get from directory " + dirFilename);
-		    	directory(controller.getDHTdir());
-		    	JFileChooser c = new JFileChooser();
-				int rVal = c.showSaveDialog(GUI.this);
+				JFileChooser fileChooser = new JFileChooser();
+				fileChooser.setSelectedFile(new File("/home/Downloads/" + dirFilename));
+				int rVal = fileChooser.showSaveDialog(GUI.this);
 				if (rVal == JFileChooser.APPROVE_OPTION) {
-					filename.setText(c.getSelectedFile().getName());
 	    		
-					file = c.getSelectedFile().getName();
+					file = fileChooser.getSelectedFile().getName();
 					Log.info(TAG, "Name of the file: " + file);
 	    		
-					dir.setText(c.getCurrentDirectory().toString());
 	    		
-					path = c.getCurrentDirectory().toString();
+					path = fileChooser.getCurrentDirectory().toString();
 					Log.info(TAG, "Directory: " + path);
-					//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
 					int response = controller.getFile(dirFilename, path, file);
 					if (response == 0) {
 						directory(controller.getDHTdir());
@@ -506,10 +539,6 @@ public class GUI extends JFrame {
 					else {
 						JOptionPane.showMessageDialog(null, "Error.");
 					}
-				}
-				if (rVal == JFileChooser.CANCEL_OPTION) {
-					filename.setText("You pressed cancel");
-					dir.setText("");
 				}
 		    }
 	    });
@@ -543,9 +572,7 @@ public class GUI extends JFrame {
 	    // Setting upper menu
 	    JMenuBar menubar = new JMenuBar();
 	    JMenu fileMenu = new JMenu("File");
-	    JMenu viewMenu = new JMenu("View");
 	    JMenu helpMenu = new JMenu("Help");
-	    JMenu logMenu = new JMenu("Log");
 	    JMenuItem eMenuItem = new JMenuItem("Exit");
 	    JMenuItem connectItem = new JMenuItem("Connect");
 	    JMenuItem putItem = new JMenuItem("Put");
@@ -553,24 +580,14 @@ public class GUI extends JFrame {
 	    JMenuItem dumpItem = new JMenuItem("Dump");
 	    JMenuItem disconnectItem = new JMenuItem("Disconnect");
 	    JMenuItem dMenuItem = new JMenuItem("Documentation");
-	    JCheckBoxMenuItem showc = new JCheckBoxMenuItem("Show C log");
-	    JCheckBoxMenuItem showj = new JCheckBoxMenuItem("Show Java log");
-	    JCheckBoxMenuItem showf = new JCheckBoxMenuItem("Full screen");
-	    showc.setSelected(true);
-	    showj.setSelected(true);
 	    fileMenu.add(connectItem);
 	    fileMenu.add(putItem);
 	    fileMenu.add(getItem);
 	    fileMenu.add(dumpItem);
 	    fileMenu.add(disconnectItem);
 	    fileMenu.add(eMenuItem);
-	    logMenu.add(showc);
-	    logMenu.add(showj);
-	    viewMenu.add(showf);
-	    viewMenu.add(logMenu);
 	    helpMenu.add(dMenuItem);
 	    menubar.add(fileMenu);
-	    menubar.add(viewMenu);
 	    menubar.add(Box.createHorizontalGlue());
 	    menubar.add(helpMenu);
 	    setJMenuBar(menubar);
@@ -582,28 +599,11 @@ public class GUI extends JFrame {
 	    disconnectItem.addActionListener(new Disconnect());
 	    eMenuItem.addActionListener(new Exit());
 	    
-	    showf.addActionListener(new ActionListener() {
-	    	public void actionPerformed(ActionEvent e) {
-	    		setExtendedState(JFrame.MAXIMIZED_BOTH);
-	    	}
-	    });
-	    
-	    showc.addActionListener(new ActionListener() {
-	    	public void actionPerformed(ActionEvent e) {
-	    		//TODO: SHOW / HIDE C LOG!
-	    	}
-	    });
-	    
-	    showj.addActionListener(new ActionListener() {
-	    	public void actionPerformed(ActionEvent e) {
-	    		//TODO: SHOW / HIDE JAVA LOG!
-	    	}
-	    });
 	    
 	    dMenuItem.addActionListener(new ActionListener() {
 	    public void actionPerformed(ActionEvent e) {
 	    try {
-	    	// TODO: CHANGE LOCATION!
+	    	// !! WORKS ON WINDOWS !!
 	    	File documentation = new File("home/group02/releases/iteration1/doc/iteration1.pdf");
 	    	Desktop.getDesktop().open(documentation);
 	    } catch (Exception ex) {
@@ -624,4 +624,3 @@ public class GUI extends JFrame {
 	}
 	
 }
-
