@@ -175,8 +175,8 @@ struct keyring* slice_ring(struct keyring *ring, sha1_t range_begin, sha1_t rang
             begin = ring->next;
             (ring->next)->previous = NULL;
             (ring->previous)->next = NULL;
-            ring->previous = NULL;
-            ring->next = NULL;
+            ring->previous = ring;
+            ring->next = ring;
             return begin;
         } else {
             return NULL;

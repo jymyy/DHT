@@ -297,13 +297,13 @@ int main(int argc, char **argv) {
                         struct keyring *slice_n = slice;
                         while (slice_n != NULL) {
                             int blocklen = read_block(blockdir, slice_n->key, blockbuf, MAX_BLOCK_SIZE);
-                            if (blocklen == -1) {
+                            if (blocklen > 0) {
                                 sendpacket(tempsock, sendbuf, slice_n->key, host_key,
                                            DHT_TRANSFER_DATA, blockbuf, blocklen);
+                                rm_block(blockdir, slice_n->key);
+                                blocks_no--;
+                                slice_n = slice_n->next;
                             }
-                            rm_block(blockdir, slice_n->key);
-                            blocks_no--;
-                            slice_n = slice_n->next;
                         }
                         free_ring(slice);
 
@@ -371,7 +371,6 @@ int main(int argc, char **argv) {
                                 }
                                 del_key(ring, packet->target);
                             } else {
-                                
                                 if (isnotself) {
                                     sendpacket(tempsock, sendbuf, packet->target, host_key,
                                                DHT_SEND_DATA, blockbuf, blocklen);
@@ -560,6 +559,9 @@ int main(int argc, char **argv) {
     }
 
     // Cleanup
+    if (cmdsock != -1) {
+        close(cmdsock);
+    }
     close(listensock);
     close(servsock);
     free_ring(ring);
