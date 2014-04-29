@@ -1,13 +1,16 @@
 package dht;
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultCaret;
 import javax.swing.text.Document;
 
 import java.awt.event.*;
 import java.awt.Desktop;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
+import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -26,10 +29,16 @@ public class GUI extends JFrame {
 	String path = "";
 	JTextPane logPane;
 	JLabel logText;
+	JScrollPane logScroll;
 	JPanel panel;
     JScrollPane directory;
     JLabel dirText;
     JList DHTdir;
+    JPopupMenu popup;
+    JMenuItem popupGet;
+    JMenuItem popupDump;
+    String dirFilename;
+    DefaultCaret caret;
  
 	
 	// Choosing a file to be put into DHT
@@ -213,11 +222,11 @@ public class GUI extends JFrame {
 					int hportint = Integer.parseInt(hport);
 					controller = new DHTController(haddr, hport);
 					connected = 1;
-					directory(controller.getDHTdir());
+					directory(controller.refreshDHTdir());
 					JOptionPane.showMessageDialog(null, "Connection completed.");
 	
 				} catch (Exception ex) {
-					JOptionPane.showMessageDialog(null, "Connection to node failed. Be sure your ports and addresses are correct.");
+					JOptionPane.showMessageDialog(null, "Connection to node failed. Be sure your ports and addresses are correct and node is running.");
 				}
 				}
 			};
@@ -231,6 +240,7 @@ public class GUI extends JFrame {
     		int terminate = controller.terminate();
     		if (terminate == 0) {
     			JOptionPane.showMessageDialog(null, "Disconnected.");
+    			connected = 0;
     		}
     		else if (terminate == 1)
     		{
@@ -242,38 +252,44 @@ public class GUI extends JFrame {
     		}
     		else {
     			JOptionPane.showMessageDialog(null, "Not connected to any node.");
-    			System.exit(0);
     		}
     	}
 	}
 	
 	class Exit implements ActionListener {
 		public void actionPerformed(ActionEvent event) {
-			int reply = JOptionPane.showConfirmDialog(null, "Exit hard way?", "Exit", JOptionPane.YES_NO_OPTION);
-			if (reply == JOptionPane.YES_OPTION) {
-				System.exit(0);
-			}
-			else {
-	    		if (connected == 1) {
-	        		int terminate = controller.terminate();
-	        		if (terminate == 0) {
-	        			System.exit(0);
-	        		}
-	        		else if (terminate == 1)
-	        		{
-	        			JOptionPane.showMessageDialog(null, "Termination denied.");
-	        			}
-	        		else if (terminate == -1) {
-	        			JOptionPane.showMessageDialog(null, "Termination failed.");
-	        			}
-	        		}
-	        		else {
-	        			JOptionPane.showMessageDialog(null, "Not connected to any node.");
-	        			System.exit(0);
-	        		}
+	    	if (connected == 1) {
+	    		Object[] options = {"Normally", "Abnormally", "Cancel"};
+	    		int reply = JOptionPane.showOptionDialog(GUI.this, "Exit via disconnecting normally or abnormally?", "Exit", 
+	    				JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE,
+	    				null, options, options[2]);
+	    		if (reply == JOptionPane.NO_OPTION) {
+	    				System.exit(0);
+	    		}
+	    		else if (reply == JOptionPane.YES_OPTION) {
+	    			int terminate = controller.terminate();
+	    			if (terminate == 0) {
+	    				System.exit(0);
+	    			}
+	    			else if (terminate == 1)
+	    			{
+	    				JOptionPane.showMessageDialog(null, "Termination denied.");
+	    			}
+	    			else if (terminate == -1) {
+	    				JOptionPane.showMessageDialog(null, "Termination failed.");
+	    			}
 	        	}
-			}
+	    		else {
+	    			
+	    		}
+	    	}
+	        else {
+	        	JOptionPane.showMessageDialog(null, "Not connected to any node.");
+	        	System.exit(0);
+	        	}
+	        }
 		}
+		
 	
 
 	
@@ -286,11 +302,12 @@ public class GUI extends JFrame {
 	    MouseListener mouseListener = new MouseAdapter() {
 	    	public void mouseClicked(MouseEvent mouseEvent) {
 	    		JList theList = (JList) mouseEvent.getSource();
-	    		if (mouseEvent.getClickCount() == 2) {
+	    		if (SwingUtilities.isRightMouseButton(mouseEvent)) {
 	    			int index = theList.locationToIndex(mouseEvent.getPoint());
 	    			if (index >= 0) {
 	    				Object o = theList.getModel().getElementAt(index);
-	    				System.out.println("Double-clicked on " + o.toString());
+	    				dirFilename = o.toString();
+	    				popup.show(mouseEvent.getComponent(), mouseEvent.getX(), mouseEvent.getY());
 	    			}
 	    		}
 	    	}
@@ -303,17 +320,18 @@ public class GUI extends JFrame {
 	
 	
 	private void updateTextPane(final String text) {
-	    SwingUtilities.invokeLater(new Runnable() {
-	      public void run() {
-	        Document doc = logPane.getDocument();
-	        try {
-	          doc.insertString(doc.getLength(), text, null);
-	        } catch (BadLocationException e) {
-	          throw new RuntimeException(e);
-	        }
-	        logPane.setCaretPosition(doc.getLength() - 1);
-	      }
-	    });
+        Document doc = logPane.getDocument();
+        try {
+          doc.insertString(doc.getLength(), text, null);
+        } catch (BadLocationException e) {
+          throw new RuntimeException(e);
+        }
+        logPane.setCaretPosition(doc.getLength() - 1);
+		Rectangle paneRect = logPane.getBounds();
+		paneRect.x = 0;
+		paneRect.y = 0;
+		logPane.paintImmediately(paneRect);
+
 	  }
 
 	  private void redirectSystemStreams() {
@@ -344,22 +362,46 @@ public class GUI extends JFrame {
 		  
 		// Setting up main window
 		setTitle("DHT GUI");
-		setSize(950,600);
+		setSize(1150,600);
 		setLocationRelativeTo(null);
 		panel = new JPanel();
 	    getContentPane().add(panel);
 	    panel.setLayout(null);
 		
-		// Setting up listeners
+		// Setting up exit listener
 		addWindowListener(new WindowAdapter() {
 		  	public void windowClosing(WindowEvent e) {
-			   System.exit(0);
-		  	}
+		    	if (connected == 1) {
+		    		Object[] options = {"Normally", "Abnormally"};
+		    		int reply = JOptionPane.showOptionDialog(GUI.this, "Exit via disconnecting normally or abnormally?", "Exit", 
+		    				JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE,
+		    				null, options, options[1]);
+		    		if (reply == JOptionPane.NO_OPTION) {
+		    				System.exit(0);
+		    		}
+		    		else if (reply == JOptionPane.YES_OPTION) {
+		    			int terminate = controller.terminate();
+		    			if (terminate == 0) {
+		    				System.exit(0);
+		    			}
+		    			else if (terminate == 1)
+		    			{
+		    				JOptionPane.showMessageDialog(null, "Termination denied.");
+		    			}
+		    			else if (terminate == -1) {
+		    				JOptionPane.showMessageDialog(null, "Termination failed.");
+		    			}
+		        	}
+		    	}
+		        else {
+		        	System.exit(0);
+		        	}
+		        }
 		});
 		
 		// Setting connection button
 	    JButton connectionButton = new JButton("Connect");
-	    connectionButton.setBounds(200, 10, 100, 30);
+	    connectionButton.setBounds(300, 10, 100, 30);
 	    panel.add(connectionButton);
 	    connectionButton.addActionListener(new Connect());
 	    connectionButton.setToolTipText("Connect to node");
@@ -367,7 +409,7 @@ public class GUI extends JFrame {
 	    
 	    // Setting put button
 	    JButton putButton = new JButton("Put");
-	    putButton.setBounds(300, 10, 100, 30);
+	    putButton.setBounds(400, 10, 100, 30);
 	    putButton.addActionListener(new PutFile());
 	    panel.add(putButton);
 	    putButton.setToolTipText("Put data to DHT");
@@ -375,7 +417,7 @@ public class GUI extends JFrame {
 	    
 	    // Setting get button
 	    JButton getButton = new JButton("Get");
-	    getButton.setBounds(400, 10, 100, 30);
+	    getButton.setBounds(500, 10, 100, 30);
 	    getButton.addActionListener(new GetFile());
 	    panel.add(getButton);
 	    getButton.setToolTipText("Get data from DHT");
@@ -383,7 +425,7 @@ public class GUI extends JFrame {
 	    
 	    // Setting dump button
 	    JButton dumpButton = new JButton("Dump");
-	    dumpButton.setBounds(500, 10, 100, 30);
+	    dumpButton.setBounds(600, 10, 100, 30);
 	    panel.add(dumpButton);
 	    dumpButton.addActionListener(new Dump());
 	    dumpButton.setToolTipText("Dump data from DHT");
@@ -391,7 +433,7 @@ public class GUI extends JFrame {
 	    
 	    // Setting disconnect button
 	    JButton disconnectButton = new JButton("Disconnect");
-	    disconnectButton.setBounds(600, 10, 120, 30);
+	    disconnectButton.setBounds(700, 10, 120, 30);
 	    disconnectButton.addActionListener(new Disconnect());
 	    
 	    panel.add(disconnectButton);
@@ -413,7 +455,7 @@ public class GUI extends JFrame {
 	    refreshButton.setToolTipText("Refresh DHT directory");
 	    panel.add(refreshButton);
 	    
-	    // Setting directory
+	    // Setting directory & it's popup menu
 	    
 		dirText = new JLabel();
 		dirText.setBounds(50,80,100,20);
@@ -423,18 +465,78 @@ public class GUI extends JFrame {
 	    panel.add(directory);
 	    panel.add(dirText);
 	    
-
+	    popup = new JPopupMenu();
+	    popupGet = new JMenuItem("Get");
+	    popupDump = new JMenuItem("Dump");
+	    
+	    popup.add(popupGet);
+	    popup.add(popupDump);
+	    panel.add(popup);
+	    
+	    // Popup menu's listeners for get and dump
+	    
+	    popupGet.addActionListener(new ActionListener() {
+		    public void actionPerformed(ActionEvent e) {
+		    	Log.info(TAG, "File to get from directory " + dirFilename);
+		    	directory(controller.getDHTdir());
+		    	JFileChooser c = new JFileChooser();
+				int rVal = c.showSaveDialog(GUI.this);
+				if (rVal == JFileChooser.APPROVE_OPTION) {
+					filename.setText(c.getSelectedFile().getName());
+	    		
+					file = c.getSelectedFile().getName();
+					Log.info(TAG, "Name of the file: " + file);
+	    		
+					dir.setText(c.getCurrentDirectory().toString());
+	    		
+					path = c.getCurrentDirectory().toString();
+					Log.info(TAG, "Directory: " + path);
+					//TODO: GIVE FILENAME AND PATH FOR CONTROLLER
+					int response = controller.getFile(dirFilename, path, file);
+					if (response == 0) {
+						directory(controller.getDHTdir());
+						JOptionPane.showMessageDialog(null, "Downloading file " + dirFilename + " completed.");
+					}
+					else if (response == 1) {
+						JOptionPane.showMessageDialog(null, "File not found in DHT.");
+					}
+					else if (response == 2) {
+						JOptionPane.showMessageDialog(null, "File corrupted, download aborted.");
+					}
+					else {
+						JOptionPane.showMessageDialog(null, "Error.");
+					}
+				}
+				if (rVal == JFileChooser.CANCEL_OPTION) {
+					filename.setText("You pressed cancel");
+					dir.setText("");
+				}
+		    }
+	    });
+	    
+	    popupDump.addActionListener(new ActionListener() {
+		    public void actionPerformed(ActionEvent e) {
+		    	Log.info(TAG, "File to be dumped from directory " + dirFilename);
+		    	controller.dumpFile(dirFilename);
+		    	directory(controller.getDHTdir());
+		    }
+	    });
 	    
 	    // Setting log window
 		logText = new JLabel();
 		logText.setBounds(500,80,100,20);
 		logText.setText("Log");
 	    logPane = new JTextPane();
-        logPane.setBounds(500, 100, 700, 300);
+        logPane.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
         panel.add(logText);
-        panel.add(logPane);
+		logScroll = new JScrollPane(logPane);
+        logScroll.setBounds(500, 100, 600, 300);
+        panel.add(logScroll);
         logPane.setEditable(false);
         redirectSystemStreams();
+        caret = (DefaultCaret)logPane.getCaret();
+        caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+
         
         
 	    
@@ -522,6 +624,4 @@ public class GUI extends JFrame {
 	}
 	
 }
-
-
 
