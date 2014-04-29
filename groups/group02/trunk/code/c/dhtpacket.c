@@ -44,6 +44,9 @@ int recv_p(int socket, byte *recvbuf, int bufsize) {
         bytes_total += bytes_received;
         bytes_missing -= bytes_received;
     }
+    if (recvbuf[0] == '?') {
+        LOG_WARN(TAG_PACKET, "First byte is ?");
+    }
 
     // Check length of the packet and receive more data if needed
     memcpy(&pl_len, recvbuf+PL_LEN_OFFSET, sizeof(uint16_t));

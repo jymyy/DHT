@@ -38,6 +38,8 @@ int wait_hs(int socket) {
 
 int open_conn(int *sock, struct tcp_addr *addr) {
     LOG_INFO(TAG_SOCKET, "Opening connection");
+    LOG_DEBUG(TAG_SOCKET, "Address: %s", addr->addr);
+    LOG_DEBUG(TAG_SOCKET, "Port: %s", addr->port);
     int status = 0;
     struct addrinfo hints, *info;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -47,10 +49,10 @@ int open_conn(int *sock, struct tcp_addr *addr) {
         DIE(TAG_SOCKET, "%s", gai_strerror(status));
     }
     if ((*sock = socket(info->ai_family, info->ai_socktype, info->ai_protocol)) == -1) {
-        DIE(TAG_SOCKET, "Socket creation failed");
+        DIE(TAG_SOCKET, "%s", strerror(errno));
     }
     if ((status = connect(*sock, info->ai_addr, info->ai_addrlen)) == -1) {
-        DIE(TAG_SOCKET, "Connecting socket failed");
+        DIE(TAG_SOCKET, "%s", strerror(errno));
         close(*sock);
     }
     freeaddrinfo(info);
