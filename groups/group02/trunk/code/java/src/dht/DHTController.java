@@ -90,11 +90,8 @@ public class DHTController {
 			if (fileSize % (MAX_BLOCK_PL_SIZE) != 0) {
 				totalBlocks++;
 			}
-			// Init progress bar ()
-			startProgress(1, 1 + totalBlocks*2 +8 +5 , "Uploading file " + dhtFileName);
-			
-			// Lock the first block
-			lockBlock(getSHA1(dhtFileName+"-PART1"));
+			// Init progress bar max=(initial[1], blockPuts[2x], directoryLocks[4], directoryHandling[5])
+			startProgress(1, 1 + totalBlocks*2 +4 +5 , "Uploading file " + dhtFileName);
 			
 			InputStream fis = new FileInputStream(file);
 			byte[] nextPayloadBuf;
@@ -111,8 +108,6 @@ public class DHTController {
 				if (response != 0) {
 					Log.warn(TAG, "Put file failed");
 					fis.close();
-					//Release the first block
-					releaseBlock(getSHA1(dhtFileName+"-PART1"));
 					this.progressBar.interrupt();
 					return 1;
 				}
@@ -123,8 +118,6 @@ public class DHTController {
 			Log.error(TAG, "IOException while downloading a file");
 			e.printStackTrace();
 			this.progressBar.interrupt();
-			//Release the first block
-			releaseBlock(getSHA1(dhtFileName+"-PART1"));
 			return 2;
 		}
 		
@@ -134,9 +127,9 @@ public class DHTController {
 		dhtDir.add(dhtFileName);
 		putDir();
 		// Everything worked
-		//Release the directory and the first block
+		// Release the directory
 		releaseBlock(dirKey);
-		releaseBlock(getSHA1(dhtFileName+"-PART1"));
+
 		this.progressBar.interrupt();
 		return 0;
 	}
@@ -178,10 +171,8 @@ public class DHTController {
 			System.arraycopy(block, DataBlock.CMD_HEADER_LENGTH + DataBlock.TOTALBLOCKS_OFFSET, bTotalBlocks, 0, 2);
 			ByteBuffer bb = ByteBuffer.wrap(bTotalBlocks);
 			int totalBlocks = (int) bb.getShort(); 
-			// Start progress bar for downloading
-			startProgress(2, 2 + totalBlocks*3 +8 +3, "Downloading " + dhtFileName);
-			// Lock the first block
-			lockBlock(getSHA1(dhtFileName+"-PART1"));
+			// Start progress bar for downloading: max=(initial[2], blockPuts[3x], directoryLocks[4], directoryHandling[5])
+			startProgress(2, 2 + totalBlocks*3 +4 +5, "Downloading " + dhtFileName);
 
 			int blockNo = 1;
 			while (blockNo < totalBlocks) {
@@ -191,8 +182,6 @@ public class DHTController {
 				if (block == null) {
 					Log.info(TAG, "File was missing a block -> Aborting");
 					fos.close();
-					//Release the first block
-					releaseBlock(getSHA1(dhtFileName+"-PART1"));
 					this.progressBar.interrupt();
 					return 2;
 				}
@@ -203,19 +192,12 @@ public class DHTController {
 			// Lock the directory
 			lockBlock(dirKey);
 			getDir();
-			//Release the directory and the first block
+			//Release the directory
 			releaseBlock(dirKey);
-			releaseBlock(getSHA1(dhtFileName+"-PART1"));
 		} catch (Exception e) {
 			Log.error(TAG, "Error with file saving.");
-			//Release the directory and the first block
-			releaseBlock(dirKey);
-			releaseBlock(getSHA1(dhtFileName+"-PART1"));
 			return 3;
 		}
-		//Release the directory and the first block
-		releaseBlock(dirKey);
-		releaseBlock(getSHA1(dhtFileName+"-PART1"));
 		this.progressBar.interrupt();
 		return 0;
 	}
@@ -233,14 +215,10 @@ public class DHTController {
 	public int dumpFile(String dhtFileName) {
 		startProgress(0, 2, "Searching the DHT for " + dhtFileName);
 		byte[] blockKey = getSHA1(dhtFileName +"-PART1");
-		// Lock the first block
-		lockBlock(getSHA1(dhtFileName+"-PART1"));
 		byte[] firstBlock = getBlock(blockKey);
 		if (firstBlock == null) {
 			//First block not found
 			Log.info(TAG, "File was not found.");
-			//Release the first block
-			releaseBlock(getSHA1(dhtFileName+"-PART1"));
 			this.progressBar.interrupt();
 			return 1;
 		}
@@ -248,9 +226,8 @@ public class DHTController {
 		System.arraycopy(firstBlock, DataBlock.DATABLOCK_OFFSET, bTotalBlocks, 0, 2);
 		ByteBuffer bb = ByteBuffer.wrap(bTotalBlocks);
 		int totalBlocks = (int) bb.getShort(); 
-		// Start progress bar for downloading
-		startProgress(4, 4 + totalBlocks*3 +6 +2, "Dumping " + dhtFileName);
-		
+		// Start progress bar for downloading: max=(initial[2], blockPuts[3x], directoryLocks[4], directoryHandling[5])
+		startProgress(2, 2 + totalBlocks*3 +4 +5, "Dumping " + dhtFileName);
 		
 		// Go through all blocks of the file
 		int blockNo = 1;
@@ -265,9 +242,8 @@ public class DHTController {
 		getDir();
 		dhtDir.remove(dhtFileName);
 		putDir();
-		//Release the directory and the first block
+		//Release the directory
 		releaseBlock(dirKey);
-		releaseBlock(getSHA1(dhtFileName+"-PART1"));
 		this.progressBar.interrupt();
 		return 0;
 	}
@@ -455,7 +431,6 @@ public class DHTController {
 		int offset = 2;
 		byte[] fileNameArr; 
 		while (itr.hasNext()) {
-			Log.debug(TAG, "MENEE SISÄÄN");
 			fileNameArr = itr.next().getBytes();
 			b = ByteBuffer.allocate(2);
 			b.putShort( (short)fileNameArr.length);
